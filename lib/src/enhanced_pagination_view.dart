@@ -69,7 +69,7 @@ class EnhancedPaginationView<T> extends StatefulWidget {
   final Widget Function(PagingController<T> controller)? paginationBuilder;
 
   const EnhancedPaginationView({
-    Key? key,
+    super.key,
     required this.controller,
     required this.itemBuilder,
     this.onEmpty,
@@ -85,7 +85,7 @@ class EnhancedPaginationView<T> extends StatefulWidget {
     this.scrollController,
     this.showPaginationButtons = true,
     this.paginationBuilder,
-  }) : super(key: key);
+  });
 
   @override
   State<EnhancedPaginationView<T>> createState() =>
@@ -201,9 +201,9 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
         if (widget.controller.config.infiniteScroll) {
           if (state == PagingState.loadingMore) {
             return widget.bottomLoader ??
-                const Center(
+                const Padding(
                   padding: EdgeInsets.all(16),
-                  child: CircularProgressIndicator(),
+                  child: Center(child: CircularProgressIndicator()),
                 );
           }
 
@@ -214,11 +214,13 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
 
           // Show "no more data" indicator
           if (state == PagingState.completed) {
-            return const Center(
+            return const Padding(
               padding: EdgeInsets.all(16),
-              child: Text(
-                'No more items',
-                style: TextStyle(color: Colors.grey),
+              child: Center(
+                child: Text(
+                  'No more items',
+                  style: TextStyle(color: Colors.grey),
+                ),
               ),
             );
           }

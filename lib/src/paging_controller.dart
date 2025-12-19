@@ -253,7 +253,7 @@ class PagingController<T> extends ChangeNotifier {
     }
 
     if (index != -1) {
-      final removedItem = _items.removeAt(index);
+      _items.removeAt(index);
 
       // Rebuild index map
       if (_itemIndexMap != null) {

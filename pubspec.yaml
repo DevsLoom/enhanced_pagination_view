@@ -1,28 +1,13 @@
 name: enhanced_pagination_view
-description: A powerful Flutter pagination package with dual mode (infinite scroll/pagination), O(1) item updates, comprehensive state management, and zero dependencies.
+description: "Powerful pagination package with O(1) item updates, dual mode support (infinite scroll + pagination buttons), and comprehensive state management."
 version: 1.0.0
-homepage: https://github.com/yourusername/enhanced_pagination_view
-repository: https://github.com/yourusername/enhanced_pagination_view
-issue_tracker: https://github.com/yourusername/enhanced_pagination_view/issues
+homepage: https://github.com/DevsLoom/enhanced_pagination_view
+repository: https://github.com/DevsLoom/enhanced_pagination_view
+issue_tracker: https://github.com/DevsLoom/enhanced_pagination_view/issues
 
 environment:
-  sdk: ^3.10.1
+  sdk: ">=3.10.1 <4.0.0"
   flutter: ">=3.0.0"
-
-dependencies:
-  flutter:
-    sdk: flutter
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^6.0.0
-
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
-
-# The following section is specific to Flutter packages.
-flutter:
 
 topics:
   - pagination
@@ -31,8 +16,13 @@ topics:
   - ui
   - widget
 
-screenshots:
-  - description: 'Infinite scroll mode with pull-to-refresh'
-    path: screenshots/infinite_scroll.png
-  - description: 'Pagination button mode'
-    path: screenshots/pagination_mode.png
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
