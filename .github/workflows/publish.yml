@@ -81,20 +81,35 @@ jobs:
             echo "should_publish=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Configure pub.dev token
+      - name: Configure pub.dev auth
         if: steps.publish_decision.outputs.should_publish == 'true'
+        id: pub_auth
+        shell: bash
         env:
           PUB_CREDENTIALS: ${{ secrets.PUB_CREDENTIALS }}
+          PUB_TOKEN: ${{ secrets.PUB_TOKEN }}
         run: |
           set -euo pipefail
-          if [[ -z "${PUB_CREDENTIALS:-}" ]]; then
-            echo "Missing PUB_CREDENTIALS secret. Add it in GitHub: Settings → Secrets and variables → Actions." >&2
-            exit 1
+
+          if [[ -n "${PUB_CREDENTIALS:-}" ]]; then
+            mkdir -p "$HOME/.config/dart"
+            printf '%s' "$PUB_CREDENTIALS" > "$HOME/.config/dart/pub-credentials.json"
+            chmod 600 "$HOME/.config/dart/pub-credentials.json"
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Configured pub.dev auth via PUB_CREDENTIALS."
+            exit 0
           fi
-          mkdir -p "$HOME/.config/dart"
-          printf '%s' "$PUB_CREDENTIALS" > "$HOME/.config/dart/pub-credentials.json"
-          chmod 600 "$HOME/.config/dart/pub-credentials.json"
+
+          if [[ -n "${PUB_TOKEN:-}" ]]; then
+            dart pub token add https://pub.dev --env-var PUB_TOKEN
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Configured pub.dev auth via PUB_TOKEN."
+            exit 0
+          fi
+
+          echo "configured=false" >> "$GITHUB_OUTPUT"
+          echo "Missing PUB_CREDENTIALS or PUB_TOKEN secret. Skipping publish." >&2
 
       - name: Publish
-        if: steps.publish_decision.outputs.should_publish == 'true'
+        if: steps.publish_decision.outputs.should_publish == 'true' && steps.pub_auth.outputs.configured == 'true'
         run: dart pub publish --force
