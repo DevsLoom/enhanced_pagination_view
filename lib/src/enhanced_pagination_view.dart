@@ -1,6 +1,18 @@
 import 'package:flutter/material.dart';
 import 'paging_controller.dart';
 
+/// Layout mode for the pagination view
+enum PaginationLayoutMode {
+  /// List layout (default)
+  list,
+
+  /// Grid layout
+  grid,
+
+  /// Wrap layout (for tags, chips, etc.)
+  wrap,
+}
+
 /// A highly customizable pagination view widget that supports both
 /// infinite scroll and traditional pagination.
 ///
@@ -74,6 +86,24 @@ class EnhancedPaginationView<T> extends StatefulWidget {
   /// Footer widget to show at the bottom of the list (before pagination controls)
   final Widget? footer;
 
+  /// Layout mode: list, grid, or wrap
+  final PaginationLayoutMode layoutMode;
+
+  /// Grid delegate for grid layout (required when layoutMode is grid)
+  final SliverGridDelegate? gridDelegate;
+
+  /// Spacing for wrap layout
+  final double wrapSpacing;
+
+  /// Run spacing for wrap layout
+  final double wrapRunSpacing;
+
+  /// Alignment for wrap layout
+  final WrapAlignment wrapAlignment;
+
+  /// Cross axis alignment for wrap layout
+  final WrapCrossAlignment wrapCrossAlignment;
+
   const EnhancedPaginationView({
     super.key,
     required this.controller,
@@ -93,7 +123,16 @@ class EnhancedPaginationView<T> extends StatefulWidget {
     this.paginationBuilder,
     this.header,
     this.footer,
-  });
+    this.layoutMode = PaginationLayoutMode.list,
+    this.gridDelegate,
+    this.wrapSpacing = 8.0,
+    this.wrapRunSpacing = 8.0,
+    this.wrapAlignment = WrapAlignment.start,
+    this.wrapCrossAlignment = WrapCrossAlignment.start,
+  }) : assert(
+         layoutMode != PaginationLayoutMode.grid || gridDelegate != null,
+         'gridDelegate is required when layoutMode is grid',
+       );
 
   @override
   State<EnhancedPaginationView<T>> createState() =>

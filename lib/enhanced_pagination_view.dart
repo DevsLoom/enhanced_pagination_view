@@ -1,7 +1,7 @@
 library enhanced_pagination_view;
 
 /// Enhanced Pagination View - A powerful pagination package for Flutter
-/// 
+///
 /// This package provides a flexible pagination solution with:
 /// - Dual mode: Infinite scroll OR traditional pagination buttons
 /// - Direct item updates without full refresh (O(1) lookup)
@@ -9,7 +9,7 @@ library enhanced_pagination_view;
 /// - Pull-to-refresh support
 /// - Customizable UI for all states
 /// - Built-in error handling and retry
-/// 
+///
 /// Example usage:
 /// ```dart
 /// // Create controller
@@ -23,7 +23,7 @@ library enhanced_pagination_view;
 ///   },
 ///   itemKeyGetter: (item) => item.id, // For O(1) updates
 /// );
-/// 
+///
 /// // Use in widget
 /// EnhancedPaginationView<MyModel>(
 ///   controller: controller,
@@ -31,7 +31,7 @@ library enhanced_pagination_view;
 ///     return ListTile(title: Text(item.name));
 ///   },
 /// )
-/// 
+///
 /// // Update individual item
 /// controller.updateItem(
 ///   updatedItem,
@@ -40,4 +40,5 @@ library enhanced_pagination_view;
 /// ```
 
 export 'src/paging_controller.dart';
-export 'src/enhanced_pagination_view.dart';
+export 'src/enhanced_pagination_view.dart'
+    show EnhancedPaginationView, PaginationLayoutMode;
