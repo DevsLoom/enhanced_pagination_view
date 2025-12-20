@@ -68,6 +68,12 @@ class EnhancedPaginationView<T> extends StatefulWidget {
   /// Custom widget for pagination controls
   final Widget Function(PagingController<T> controller)? paginationBuilder;
 
+  /// Header widget to show at the top of the list
+  final Widget? header;
+
+  /// Footer widget to show at the bottom of the list (before pagination controls)
+  final Widget? footer;
+
   const EnhancedPaginationView({
     super.key,
     required this.controller,
@@ -85,6 +91,8 @@ class EnhancedPaginationView<T> extends StatefulWidget {
     this.scrollController,
     this.showPaginationButtons = true,
     this.paginationBuilder,
+    this.header,
+    this.footer,
   });
 
   @override
@@ -181,53 +189,32 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
       return widget.onEmpty ?? _buildDefaultEmpty();
     }
 
-    // Build the list
-    Widget listView = ListView.separated(
+    // Build the list using CustomScrollView for better performance
+    Widget listView = CustomScrollView(
       controller: _scrollController,
       scrollDirection: widget.scrollDirection,
       physics: widget.physics,
-      padding: widget.padding,
       shrinkWrap: widget.shrinkWrap,
-      itemCount: _getItemCount(),
-      separatorBuilder:
-          widget.separatorBuilder ?? (_, __) => const SizedBox.shrink(),
-      itemBuilder: (context, index) {
-        // Show regular items
-        if (index < items.length) {
-          return widget.itemBuilder(context, items[index], index);
-        }
+      slivers: [
+        // Add header if provided
+        if (widget.header != null) SliverToBoxAdapter(child: widget.header!),
 
-        // Show bottom loader for infinite scroll
-        if (widget.controller.config.infiniteScroll) {
-          if (state == PagingState.loadingMore) {
-            return widget.bottomLoader ??
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-          }
+        // Add padding if provided
+        if (widget.padding != null)
+          SliverPadding(
+            padding: widget.padding!,
+            sliver: _buildSliverList(items, state),
+          )
+        else
+          _buildSliverList(items, state),
 
-          // Show error at bottom
-          if (state == PagingState.error) {
-            return _buildBottomError();
-          }
+        // Add footer if provided
+        if (widget.footer != null) SliverToBoxAdapter(child: widget.footer!),
 
-          // Show "no more data" indicator
-          if (state == PagingState.completed) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(
-                child: Text(
-                  'No more items',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-            );
-          }
-        }
-
-        return const SizedBox.shrink();
-      },
+        // Show bottom loader/error/completed for infinite scroll
+        if (widget.controller.config.infiniteScroll)
+          SliverToBoxAdapter(child: _buildInfiniteScrollIndicator(state)),
+      ],
     );
 
     // Wrap with RefreshIndicator if enabled
@@ -249,19 +236,52 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
     return listView;
   }
 
-  int _getItemCount() {
-    final itemCount = widget.controller.items.length;
-
-    // Add extra slot for loader/error/completed indicator in infinite scroll
-    if (widget.controller.config.infiniteScroll) {
-      if (widget.controller.state == PagingState.loadingMore ||
-          widget.controller.state == PagingState.error ||
-          widget.controller.state == PagingState.completed) {
-        return itemCount + 1;
-      }
+  Widget _buildSliverList(List<T> items, PagingState state) {
+    if (widget.separatorBuilder != null) {
+      // Use SliverList with separators
+      return SliverList(
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final itemIndex = index ~/ 2;
+          if (index.isEven) {
+            return widget.itemBuilder(context, items[itemIndex], itemIndex);
+          }
+          return widget.separatorBuilder!(context, itemIndex);
+        }, childCount: items.length * 2 - 1),
+      );
     }
 
-    return itemCount;
+    // Use SliverList without separators
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => widget.itemBuilder(context, items[index], index),
+        childCount: items.length,
+      ),
+    );
+  }
+
+  Widget _buildInfiniteScrollIndicator(PagingState state) {
+    if (state == PagingState.loadingMore) {
+      return widget.bottomLoader ??
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          );
+    }
+
+    if (state == PagingState.error) {
+      return _buildBottomError();
+    }
+
+    if (state == PagingState.completed) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(
+          child: Text('No more items', style: TextStyle(color: Colors.grey)),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _buildDefaultError() {

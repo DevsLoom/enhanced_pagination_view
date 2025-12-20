@@ -334,3 +334,52 @@ MIT License - see LICENSE file for details
 If you find this package helpful, please ⭐ star the repo!
 
 For issues and feature requests, please use GitHub Issues.
+
+### 6. Header & Footer Support
+
+Add sticky headers and footers to your pagination view:
+
+```dart
+EnhancedPaginationView<User>(
+  controller: controller,
+  
+  // Sticky header widget
+  header: Container(
+    padding: EdgeInsets.all(16),
+    color: Colors.blue.shade50,
+    child: Column(
+      children: [
+        Text('Search Users', style: TextStyle(fontWeight: FontWeight.bold)),
+        TextField(
+          decoration: InputDecoration(hintText: 'Search...'),
+        ),
+      ],
+    ),
+  ),
+  
+  // Footer widget (before pagination controls)
+  footer: Container(
+    padding: EdgeInsets.all(16),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _buildStat('Total', totalCount),
+        _buildStat('Active', activeCount),
+        _buildStat('Inactive', inactiveCount),
+      ],
+    ),
+  ),
+  
+  itemBuilder: (context, user, index) {
+    return ListTile(title: Text(user.name));
+  },
+)
+```
+
+**Header/Footer Features:**
+- 📌 Sticky header that stays at top
+- 📊 Footer for stats/info display
+- 🎨 Fully customizable widgets
+- 🔄 Works with both infinite scroll and pagination modes
+- ⚡ Uses CustomScrollView for optimal performance
+
