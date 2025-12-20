@@ -112,4 +112,6 @@ jobs:
 
       - name: Publish
         if: steps.publish_decision.outputs.should_publish == 'true' && steps.pub_auth.outputs.configured == 'true'
+        env:
+          PUB_TOKEN: ${{ secrets.PUB_TOKEN }}
         run: dart pub publish --force
