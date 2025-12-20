@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:enhanced_pagination_view/enhanced_pagination_view.dart';
 
@@ -339,6 +341,8 @@ class ItemUpdatesExample extends StatefulWidget {
 
 class _ItemUpdatesExampleState extends State<ItemUpdatesExample> {
   late PagingController<User> _controller;
+  Timer? _snackTimer;
+  int _snackToken = 0;
 
   @override
   void initState() {
@@ -352,8 +356,45 @@ class _ItemUpdatesExampleState extends State<ItemUpdatesExample> {
 
   @override
   void dispose() {
+    _snackTimer?.cancel();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _showSnack(
+    String message, {
+    Duration duration = const Duration(seconds: 2),
+    SnackBarAction? action,
+  }) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Ensure the previous snackbar is removed immediately.
+    // Drop any in-flight or queued snackbars so the next one shows immediately.
+    messenger.clearSnackBars();
+    messenger.hideCurrentSnackBar(reason: SnackBarClosedReason.dismiss);
+
+    // Force auto-dismiss even if the platform/snackbar animation gets stuck.
+    _snackTimer?.cancel();
+    final token = ++_snackToken;
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: duration,
+        action: action,
+        behavior: SnackBarBehavior.floating,
+        dismissDirection: DismissDirection.horizontal,
+      ),
+    );
+
+    _snackTimer = Timer(duration, () {
+      if (!mounted) return;
+      if (token != _snackToken) return;
+      ScaffoldMessenger.of(
+        context,
+      ).hideCurrentSnackBar(reason: SnackBarClosedReason.timeout);
+    });
   }
 
   void _toggleOnlineStatus(User user) {
@@ -363,29 +404,23 @@ class _ItemUpdatesExampleState extends State<ItemUpdatesExample> {
       where: (u) => u.id == user.id,
     );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Updated ${user.name} - ${!user.isOnline ? "Online" : "Offline"}',
-        ),
-        duration: const Duration(seconds: 1),
-      ),
+    _showSnack(
+      'Updated ${user.name} - ${!user.isOnline ? "Online" : "Offline"}',
+      duration: const Duration(seconds: 1),
     );
   }
 
   void _removeUser(User user) {
     _controller.removeItem(key: user.id);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Removed ${user.name}'),
-        action: SnackBarAction(
-          label: 'Undo',
-          onPressed: () {
-            // Add back at the end
-            _controller.appendItem(user);
-          },
-        ),
+    _showSnack(
+      'Removed ${user.name}',
+      action: SnackBarAction(
+        label: 'Undo',
+        onPressed: () {
+          // Add back at the end
+          _controller.appendItem(user);
+        },
       ),
     );
   }
@@ -400,9 +435,7 @@ class _ItemUpdatesExampleState extends State<ItemUpdatesExample> {
 
     _controller.insertItem(0, newUser);
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Added new user at top')));
+    _showSnack('Added new user at top');
   }
 
   @override

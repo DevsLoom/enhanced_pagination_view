@@ -1,6 +1,6 @@
 name: enhanced_pagination_view
 description: "Powerful pagination package with O(1) item updates, dual mode support (infinite scroll + pagination buttons), and comprehensive state management."
-version: 1.0.0
+version: 1.0.1
 homepage: https://github.com/DevsLoom/enhanced_pagination_view
 repository: https://github.com/DevsLoom/enhanced_pagination_view
 issue_tracker: https://github.com/DevsLoom/enhanced_pagination_view/issues
@@ -23,6 +23,6 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 flutter:

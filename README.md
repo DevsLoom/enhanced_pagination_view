@@ -197,8 +197,17 @@ PagingConfig(
   initialPage: 0,                    // Starting page number
   autoLoadFirstPage: true,           // Auto-load on init
   invisibleItemsThreshold: 3,        // Trigger next page when 3 items from end
+  // Cache behavior (infiniteScroll only):
+  // Default is a bounded window to avoid unbounded memory growth.
+  // Set cacheMode: CacheMode.all if you intentionally want to keep everything.
+  cacheMode: CacheMode.limited,
+  maxCachedItems: 500,
 )
 ```
+
+Notes:
+- If you use a large `pageSize`, set `maxCachedItems >= pageSize`.
+- For “very large total datasets” (e.g. 1M+ over time), prefer `CacheMode.limited` or `CacheMode.none`.
 
 ### Controller Methods
 

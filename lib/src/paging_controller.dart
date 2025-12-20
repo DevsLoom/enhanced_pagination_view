@@ -86,7 +86,9 @@ class PagingConfig {
     this.prefetchDistance = 0.0,
     this.prefetchItemCount = 0,
     this.keepAlivePages = 0,
-    this.cacheMode = CacheMode.all,
+    // Default to a bounded cache for realistic production usage.
+    // This avoids unbounded memory growth when scrolling through large datasets.
+    this.cacheMode = CacheMode.limited,
     this.maxCachedItems = 500,
   });
 }
@@ -170,6 +172,21 @@ class PagingController<T> extends ChangeNotifier {
     }
   }
 
+  void _ensureIndexMap() {
+    if (itemKeyGetter == null) return;
+    _itemIndexMap ??= <String, int>{};
+    if (_itemIndexMap!.length != _items.length) {
+      _buildIndexMap();
+    }
+  }
+
+  void _reindexFrom(int startIndex) {
+    if (itemKeyGetter == null || _itemIndexMap == null) return;
+    for (int i = startIndex; i < _items.length; i++) {
+      _itemIndexMap![itemKeyGetter!(_items[i])] = i;
+    }
+  }
+
   /// Load the first page of data
   Future<void> loadFirstPage() async {
     if (isLoading) return;
@@ -182,7 +199,9 @@ class PagingController<T> extends ChangeNotifier {
       _currentPage = config.initialPage;
       final newItems = await pageFetcher(_currentPage);
 
-      _items = newItems;
+      // Ensure internal list remains growable even if the fetcher returns a
+      // fixed-length list (e.g., List.generate(..., growable: false)).
+      _items = List<T>.of(newItems, growable: true);
       _buildIndexMap();
 
       // Check if we received less items than page size (means no more data)
@@ -215,14 +234,29 @@ class PagingController<T> extends ChangeNotifier {
 
       // For pagination buttons mode, replace items instead of appending
       if (!config.infiniteScroll) {
-        _items = newItems;
+        // Keep list growable for later mutations (update/remove/insert).
+        _items = List<T>.of(newItems, growable: true);
+        _buildIndexMap();
       } else {
+        final oldLength = _items.length;
         _items.addAll(newItems);
-        // Apply cache management based on cacheMode
-        _applyCacheManagement();
-      }
 
-      _buildIndexMap();
+        // Apply cache management based on cacheMode.
+        // If trimming occurs, indices shift and we must rebuild the index map.
+        final didTrim = _applyCacheManagement();
+
+        if (itemKeyGetter != null) {
+          if (didTrim) {
+            _buildIndexMap();
+          } else {
+            _ensureIndexMap();
+            // Only index the newly appended items.
+            for (int i = oldLength; i < _items.length; i++) {
+              _itemIndexMap![itemKeyGetter!(_items[i])] = i;
+            }
+          }
+        }
+      }
 
       // Check if we got less than page size
       if (newItems.length < config.pageSize) {
@@ -242,20 +276,31 @@ class PagingController<T> extends ChangeNotifier {
   }
 
   /// Apply cache management to limit memory usage
-  void _applyCacheManagement() {
+  bool _applyCacheManagement() {
+    var didTrim = false;
     if (config.cacheMode == CacheMode.none) {
       // Keep only the current page items
       final currentPageItems = config.pageSize;
       if (_items.length > currentPageItems) {
-        _items = _items.sublist(_items.length - currentPageItems);
+        _items = List<T>.of(
+          _items.sublist(_items.length - currentPageItems),
+          growable: true,
+        );
+        didTrim = true;
       }
     } else if (config.cacheMode == CacheMode.limited) {
       // Keep only maxCachedItems
       if (_items.length > config.maxCachedItems) {
-        _items = _items.sublist(_items.length - config.maxCachedItems);
+        _items = List<T>.of(
+          _items.sublist(_items.length - config.maxCachedItems),
+          growable: true,
+        );
+        didTrim = true;
       }
     }
     // CacheMode.all keeps everything (no action needed)
+
+    return didTrim;
   }
 
   /// Load the previous page of data (for pagination buttons mode only)
@@ -321,11 +366,18 @@ class PagingController<T> extends ChangeNotifier {
     }
 
     if (index != -1) {
+      final oldKey = itemKeyGetter != null
+          ? itemKeyGetter!(_items[index])
+          : null;
       _items[index] = newItem;
 
       // Update index map if key changed
       if (itemKeyGetter != null && _itemIndexMap != null) {
-        _itemIndexMap![itemKeyGetter!(newItem)] = index;
+        final newKey = itemKeyGetter!(newItem);
+        if (oldKey != null && oldKey != newKey) {
+          _itemIndexMap!.remove(oldKey);
+        }
+        _itemIndexMap![newKey] = index;
       }
 
       notifyListeners();
@@ -352,11 +404,18 @@ class PagingController<T> extends ChangeNotifier {
     }
 
     if (index != -1) {
+      final removedKey = itemKeyGetter != null
+          ? itemKeyGetter!(_items[index])
+          : null;
       _items.removeAt(index);
 
-      // Rebuild index map
-      if (_itemIndexMap != null) {
-        _buildIndexMap();
+      // Maintain index map without full rebuild.
+      if (itemKeyGetter != null) {
+        _ensureIndexMap();
+        if (removedKey != null) {
+          _itemIndexMap?.remove(removedKey);
+        }
+        _reindexFrom(index);
       }
 
       // Update empty state if needed
@@ -375,9 +434,10 @@ class PagingController<T> extends ChangeNotifier {
   void insertItem(int index, T item) {
     _items.insert(index, item);
 
-    // Rebuild index map
-    if (_itemIndexMap != null) {
-      _buildIndexMap();
+    // Maintain index map without full rebuild.
+    if (itemKeyGetter != null) {
+      _ensureIndexMap();
+      _reindexFrom(index);
     }
 
     // Update state if was empty

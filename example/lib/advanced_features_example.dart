@@ -6,7 +6,8 @@ class AdvancedFeaturesExample extends StatefulWidget {
   const AdvancedFeaturesExample({super.key});
 
   @override
-  State<AdvancedFeaturesExample> createState() => _AdvancedFeaturesExampleState();
+  State<AdvancedFeaturesExample> createState() =>
+      _AdvancedFeaturesExampleState();
 }
 
 class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
@@ -71,34 +72,35 @@ class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
           Expanded(
             child: EnhancedPaginationView<User>(
               controller: _controller,
-              
+
               // 🎨 Custom Status Views
               initialLoader: _showCustomViews
                   ? _buildCustomInitialLoader()
                   : null,
-              
+
               bottomLoader: _showCustomViews
                   ? _buildCustomBottomLoader()
                   : null,
-              
-              onCompleted: _showCustomViews
-                  ? _buildCustomCompleted()
-                  : null,
-              
-              onEmpty: _showCustomViews
-                  ? _buildCustomEmpty()
-                  : null,
-              
+
+              onCompleted: _showCustomViews ? _buildCustomCompleted() : null,
+
+              onEmpty: _showCustomViews ? _buildCustomEmpty() : null,
+
               onError: _showCustomViews
                   ? (error) => _buildCustomError(error)
                   : null,
-              
+
               itemBuilder: (context, user, index) {
                 return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: user.isOnline ? Colors.green : Colors.grey,
+                      backgroundColor: user.isOnline
+                          ? Colors.green
+                          : Colors.grey,
                       child: Text(user.name[0]),
                     ),
                     title: Text(user.name),
@@ -113,7 +115,7 @@ class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
                   ),
                 );
               },
-              
+
               enablePullToRefresh: true,
             ),
           ),
@@ -135,10 +137,7 @@ class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
               const SizedBox(width: 8),
               const Text(
                 'Prefetch Settings',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const Spacer(),
               Switch(
@@ -225,18 +224,12 @@ class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
   Widget _buildStatusBadge(String label, String value, Color color) {
     return Column(
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: Colors.grey[700],
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[700])),
         const SizedBox(height: 4),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
+            color: color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: color),
           ),
@@ -321,10 +314,7 @@ class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
           const SizedBox(height: 8),
           Text(
             'Prefetch enabled for smoother experience',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           ),
         ],
       ),
@@ -380,10 +370,7 @@ class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
           const SizedBox(height: 4),
           Text(
             'You\'ve reached the end',
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           ),
         ],
       ),
@@ -397,11 +384,7 @@ class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.inbox_outlined,
-              size: 80,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.inbox_outlined, size: 80, color: Colors.grey[400]),
             const SizedBox(height: 24),
             const Text(
               'No Data Found',
@@ -414,10 +397,7 @@ class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
             const SizedBox(height: 8),
             Text(
               'Try refreshing to load data',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
           ],
         ),
@@ -431,11 +411,7 @@ class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 80,
-            color: Colors.red.shade400,
-          ),
+          Icon(Icons.error_outline, size: 80, color: Colors.red.shade400),
           const SizedBox(height: 24),
           const Text(
             '❌ Oops! Something went wrong',
@@ -449,10 +425,7 @@ class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
           const SizedBox(height: 12),
           Text(
             error.toString(),
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[700],
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey[700]),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 24),

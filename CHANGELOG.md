@@ -1,5 +1,18 @@
 ## 1.0.0 - 2024-12-19
 
+## 1.0.1 - 2025-12-19
+
+### Changed
+- Default `PagingConfig.cacheMode` is now `CacheMode.limited` (default `maxCachedItems` stays 500) to prevent unbounded memory growth in infinite scroll.
+
+### Improved
+- `PagingController` keeps its internal item list growable (safer when fetchers return fixed-length lists).
+- `PagingController.loadNextPage()` now updates the key→index map incrementally when possible; rebuilds only when cache trimming shifts indices.
+
+### Fixed
+- Example: SnackBars now replace the previous one immediately and reliably auto-dismiss.
+- Example: Replaced deprecated `withOpacity` usage.
+
 ### 🎉 Initial Release
 
 #### Features
