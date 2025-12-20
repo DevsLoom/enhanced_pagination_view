@@ -1,0 +1,69 @@
+name: Publish to pub.dev
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Skip if version already published
+        id: version_check
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          PKG_NAME=$(grep -E '^name:\s*' pubspec.yaml | head -n1 | cut -d ':' -f2- | xargs)
+          PKG_VERSION=$(grep -E '^version:\s*' pubspec.yaml | head -n1 | cut -d ':' -f2- | xargs)
+
+          if [[ -z "$PKG_NAME" || -z "$PKG_VERSION" ]]; then
+            echo "Could not read name/version from pubspec.yaml" >&2
+            exit 1
+          fi
+
+          echo "package=$PKG_NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
+
+          if curl -fsSL "https://pub.dev/api/packages/${PKG_NAME}" | grep -q "\"version\":\"${PKG_VERSION}\""; then
+            echo "already_published=true" >> "$GITHUB_OUTPUT"
+            echo "${PKG_NAME} ${PKG_VERSION} is already on pub.dev; skipping publish."
+          else
+            echo "already_published=false" >> "$GITHUB_OUTPUT"
+            echo "${PKG_NAME} ${PKG_VERSION} not found on pub.dev; will publish."
+          fi
+
+      - name: Configure pub.dev token
+        if: steps.version_check.outputs.already_published != 'true'
+        env:
+          PUB_TOKEN: ${{ secrets.PUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${PUB_TOKEN:-}" ]]; then
+            echo "Missing PUB_TOKEN secret. Add it in GitHub: Settings → Secrets and variables → Actions." >&2
+            exit 1
+          fi
+          dart pub token add https://pub.dev --env-var PUB_TOKEN
+
+      - name: Publish
+        if: steps.version_check.outputs.already_published != 'true'
+        run: dart pub publish --force
