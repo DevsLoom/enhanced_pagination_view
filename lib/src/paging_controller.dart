@@ -189,6 +189,7 @@ class PagingController<T> extends ChangeNotifier {
   int _currentPage = 0;
   Object? _error;
   bool _hasMoreData = true;
+  bool _disposed = false;
 
   // Concurrency/race protection.
   // Any time we want to invalidate in-flight requests (refresh/restore),
@@ -250,7 +251,7 @@ class PagingController<T> extends ChangeNotifier {
     _setState(snapshot.state);
     _buildIndexMap();
     if (notify) {
-      notifyListeners();
+      _safeNotifyListeners();
     }
   }
 
@@ -286,7 +287,7 @@ class PagingController<T> extends ChangeNotifier {
     final requestGeneration = ++_generation;
     _setState(PagingState.loading);
     _error = null;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       _currentPage = config.initialPage;
@@ -323,7 +324,7 @@ class PagingController<T> extends ChangeNotifier {
       debugPrint('Error loading first page: $e\n$stackTrace');
     }
 
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Load the next page of data (for infinite scroll or pagination)
@@ -336,7 +337,7 @@ class PagingController<T> extends ChangeNotifier {
 
     final requestGeneration = _generation;
     _setState(PagingState.loadingMore);
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final nextPage = _currentPage + 1;
@@ -402,7 +403,7 @@ class PagingController<T> extends ChangeNotifier {
       );
     }
 
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Apply cache management to limit memory usage
@@ -446,7 +447,7 @@ class PagingController<T> extends ChangeNotifier {
 
     final requestGeneration = _generation;
     _setState(PagingState.loadingMore);
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       final previousPage = _currentPage - 1;
@@ -482,7 +483,7 @@ class PagingController<T> extends ChangeNotifier {
       );
     }
 
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Refresh the entire list (reload from first page)
@@ -531,7 +532,7 @@ class PagingController<T> extends ChangeNotifier {
         _itemIndexMap![newKey] = index;
       }
 
-      notifyListeners();
+      _safeNotifyListeners();
       return true;
     }
 
@@ -574,7 +575,7 @@ class PagingController<T> extends ChangeNotifier {
         _state = PagingState.empty;
       }
 
-      notifyListeners();
+      _safeNotifyListeners();
       return true;
     }
 
@@ -596,7 +597,7 @@ class PagingController<T> extends ChangeNotifier {
       _setState(PagingState.loaded);
     }
 
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Append an item to the end of the list
@@ -613,7 +614,7 @@ class PagingController<T> extends ChangeNotifier {
       _setState(PagingState.loaded);
     }
 
-    notifyListeners();
+    _safeNotifyListeners();
   }
 
   /// Retry loading after an error
@@ -631,9 +632,18 @@ class PagingController<T> extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     _generation++;
     _items.clear();
     _itemIndexMap?.clear();
     super.dispose();
+  }
+
+  /// Safely call notifyListeners only if not disposed
+  void _safeNotifyListeners() {
+    if (!_disposed) {
+      notifyListeners();
+    }
   }
 }
