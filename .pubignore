@@ -1,0 +1,40 @@
+# Files to exclude from pub.dev uploads
+# Dart/Flutter tooling
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub/
+.pub-cache/
+build/
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS junk
+.DS_Store
+
+# Android/Gradle/Studio
+**/.gradle/
+**/.kotlin/
+**/captures/
+**/.cxx/
+
+# iOS/macOS build artifacts
+**/Pods/
+**/.symlinks/
+**/DerivedData/
+**/Flutter/ephemeral/
+
+# Example app build outputs
+example/**/.dart_tool/
+example/**/build/
+
+# Misc
+*.log
+*.swp
+*.salive
