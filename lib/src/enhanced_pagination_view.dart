@@ -77,6 +77,12 @@ class EnhancedPaginationView<T> extends StatefulWidget {
   /// Scroll controller (optional, for external scroll control)
   final ScrollController? scrollController;
 
+  /// Optional key for the internal scroll view.
+  ///
+  /// Use a [PageStorageKey] here to have Flutter automatically preserve and
+  /// restore scroll offset across rebuilds/routes.
+  final Key? scrollViewKey;
+
   /// Show pagination buttons at bottom (only when infiniteScroll is false)
   final bool showPaginationButtons;
 
@@ -132,6 +138,7 @@ class EnhancedPaginationView<T> extends StatefulWidget {
     this.separatorBuilder,
     this.shrinkWrap = false,
     this.scrollController,
+    this.scrollViewKey,
     this.showPaginationButtons = true,
     this.paginationBuilder,
     this.header,
@@ -284,6 +291,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
 
     // Build the list using CustomScrollView for better performance
     Widget listView = CustomScrollView(
+      key: widget.scrollViewKey,
       controller: _scrollController,
       scrollDirection: widget.scrollDirection,
       physics: widget.physics,

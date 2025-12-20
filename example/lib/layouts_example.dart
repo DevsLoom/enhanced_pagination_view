@@ -19,11 +19,15 @@ class _LayoutsExampleState extends State<LayoutsExample> {
   void initState() {
     super.initState();
     _controller = PagingController<User>(
-      config: PagingConfig(
-        pageSize: 20,
-        infiniteScroll: true,
-      ),
+      config: PagingConfig(pageSize: 20, infiniteScroll: true),
       pageFetcher: (page) => FakeApiService.fetchUsers(page),
+      itemKeyGetter: (u) => u.id,
+      analytics: PagingAnalytics<User>(
+        onPageRequest: (page) => debugPrint('[Layouts] Request page $page'),
+        onPageError: (page, error, _, {required isFirstPage}) => debugPrint(
+          '[Layouts] Error page $page (first=$isFirstPage): $error',
+        ),
+      ),
     );
   }
 
@@ -64,9 +68,11 @@ class _LayoutsExampleState extends State<LayoutsExample> {
           // Direction toggle
           if (_layoutMode != PaginationLayoutMode.wrap)
             IconButton(
-              icon: Icon(_scrollDirection == Axis.vertical
-                  ? Icons.swap_horiz
-                  : Icons.swap_vert),
+              icon: Icon(
+                _scrollDirection == Axis.vertical
+                    ? Icons.swap_horiz
+                    : Icons.swap_vert,
+              ),
               onPressed: _toggleDirection,
               tooltip: 'Toggle Direction',
             ),
@@ -161,41 +167,40 @@ class _LayoutsExampleState extends State<LayoutsExample> {
           Expanded(
             child: EnhancedPaginationView<User>(
               controller: _controller,
+              scrollViewKey: const PageStorageKey<String>('layouts-scroll'),
               layoutMode: _layoutMode,
               scrollDirection: _scrollDirection,
-              
+
               // Grid configuration
               gridDelegate: _layoutMode == PaginationLayoutMode.grid
                   ? (_scrollDirection == Axis.vertical
-                      ? SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: _gridCrossAxisCount,
-                          childAspectRatio: 0.8,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                        )
-                      : SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 1.5,
-                          crossAxisSpacing: 8,
-                          mainAxisSpacing: 8,
-                        ))
+                        ? SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: _gridCrossAxisCount,
+                            childAspectRatio: 0.8,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                          )
+                        : SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            childAspectRatio: 1.5,
+                            crossAxisSpacing: 8,
+                            mainAxisSpacing: 8,
+                          ))
                   : null,
-              
+
               // Wrap configuration
               wrapSpacing: 8,
               wrapRunSpacing: 8,
               wrapAlignment: WrapAlignment.start,
-              
+
               padding: const EdgeInsets.all(16),
-              
+
               itemBuilder: (context, user, index) {
                 return _buildUserCard(user, index);
               },
-              
-              onEmpty: const Center(
-                child: Text('No users found'),
-              ),
-              
+
+              onEmpty: const Center(child: Text('No users found')),
+
               enablePullToRefresh: true,
             ),
           ),
@@ -241,9 +246,7 @@ class _LayoutsExampleState extends State<LayoutsExample> {
     // For grid and list layouts - full cards
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: _scrollDirection == Axis.horizontal
           ? _buildHorizontalCard(user)
           : _buildVerticalCard(user),
@@ -270,10 +273,7 @@ class _LayoutsExampleState extends State<LayoutsExample> {
           const SizedBox(height: 8),
           Text(
             user.name,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -282,10 +282,7 @@ class _LayoutsExampleState extends State<LayoutsExample> {
             const SizedBox(height: 4),
             Text(
               user.email,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -344,10 +341,7 @@ class _LayoutsExampleState extends State<LayoutsExample> {
                     const SizedBox(width: 4),
                     Text(
                       user.isOnline ? 'Online' : 'Offline',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                     ),
                   ],
                 ),

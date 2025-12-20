@@ -12,6 +12,7 @@ class AdvancedFeaturesExample extends StatefulWidget {
 
 class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
   late PagingController<User> _controller;
+  PagingSnapshot<User>? _snapshot;
   double _prefetchDistance = 200.0;
   bool _showCustomViews = true;
 
@@ -34,6 +35,14 @@ class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
         await Future.delayed(Duration(milliseconds: 800 + (page * 200)));
         return await FakeApiService.fetchUsers(page);
       },
+      itemKeyGetter: (user) => user.id,
+      analytics: PagingAnalytics<User>(
+        onPageRequest: (page) =>
+            debugPrint('[AdvancedFeatures] Request page $page'),
+        onPageError: (page, error, _, {required isFirstPage}) => debugPrint(
+          '[AdvancedFeatures] Error page $page (first=$isFirstPage): $error',
+        ),
+      ),
     );
   }
 
@@ -72,6 +81,9 @@ class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
           Expanded(
             child: EnhancedPaginationView<User>(
               controller: _controller,
+              scrollViewKey: const PageStorageKey<String>(
+                'advanced-features-scroll',
+              ),
 
               // 🎨 Custom Status Views
               initialLoader: _showCustomViews
@@ -183,6 +195,45 @@ class _AdvancedFeaturesExampleState extends State<AdvancedFeaturesExample> {
               color: Colors.grey[700],
               fontStyle: FontStyle.italic,
             ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    _snapshot = _controller.snapshot();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Snapshot saved'),
+                        duration: Duration(milliseconds: 900),
+                      ),
+                    );
+                    setState(() {});
+                  },
+                  icon: const Icon(Icons.save),
+                  label: const Text('Save Snapshot'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _snapshot == null
+                      ? null
+                      : () {
+                          _controller.restoreFromSnapshot(_snapshot!);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Snapshot restored'),
+                              duration: Duration(milliseconds: 900),
+                            ),
+                          );
+                        },
+                  icon: const Icon(Icons.restore),
+                  label: const Text('Restore'),
+                ),
+              ),
+            ],
           ),
         ],
       ),

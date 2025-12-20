@@ -93,6 +93,56 @@ class PagingConfig {
   });
 }
 
+/// Optional callbacks for observing paging behavior (analytics/telemetry).
+///
+/// Kept separate from [PagingConfig] so existing `const PagingConfig(...)` usage
+/// remains valid.
+class PagingAnalytics<T> {
+  /// Called right before a page request starts.
+  final void Function(int page)? onPageRequest;
+
+  /// Called when a page request succeeds.
+  final void Function(int page, List<T> newItems, {required bool isFirstPage})?
+  onPageSuccess;
+
+  /// Called when a page request fails.
+  final void Function(
+    int page,
+    Object error,
+    StackTrace stackTrace, {
+    required bool isFirstPage,
+  })?
+  onPageError;
+
+  /// Called whenever [PagingController.state] changes.
+  final void Function(PagingState previous, PagingState next)? onStateChanged;
+
+  const PagingAnalytics({
+    this.onPageRequest,
+    this.onPageSuccess,
+    this.onPageError,
+    this.onStateChanged,
+  });
+}
+
+/// A snapshot of [PagingController] state that can be cached in memory and
+/// restored later.
+///
+/// This is intentionally not JSON-serializable because [T] may not be.
+class PagingSnapshot<T> {
+  final List<T> items;
+  final PagingState state;
+  final int currentPage;
+  final bool hasMoreData;
+
+  const PagingSnapshot({
+    required this.items,
+    required this.state,
+    required this.currentPage,
+    required this.hasMoreData,
+  });
+}
+
 /// Controller for managing paginated data with state management
 ///
 /// This controller maintains the list of items, current page, and loading states.
@@ -119,10 +169,14 @@ class PagingController<T> extends ChangeNotifier {
   /// If not provided, uses item instance equality
   final String Function(T item)? itemKeyGetter;
 
+  /// Optional analytics callbacks.
+  final PagingAnalytics<T>? analytics;
+
   PagingController({
     required this.pageFetcher,
     PagingConfig? config,
     this.itemKeyGetter,
+    this.analytics,
   }) : config = config ?? const PagingConfig() {
     if (this.config.autoLoadFirstPage) {
       loadFirstPage();
@@ -135,6 +189,11 @@ class PagingController<T> extends ChangeNotifier {
   int _currentPage = 0;
   Object? _error;
   bool _hasMoreData = true;
+
+  // Concurrency/race protection.
+  // Any time we want to invalidate in-flight requests (refresh/restore),
+  // increment this value so stale results are ignored.
+  int _generation = 0;
 
   // Map for O(1) item lookup by key
   Map<String, int>? _itemIndexMap;
@@ -162,6 +221,39 @@ class PagingController<T> extends ChangeNotifier {
   /// Total number of items loaded
   int get itemCount => _items.length;
 
+  void _setState(PagingState next) {
+    if (_state == next) return;
+    final previous = _state;
+    _state = next;
+    analytics?.onStateChanged?.call(previous, next);
+  }
+
+  /// Create an in-memory snapshot of the current controller state.
+  PagingSnapshot<T> snapshot() {
+    return PagingSnapshot<T>(
+      items: List<T>.of(_items, growable: true),
+      state: _state,
+      currentPage: _currentPage,
+      hasMoreData: _hasMoreData,
+    );
+  }
+
+  /// Restore controller state from a previously taken [PagingSnapshot].
+  ///
+  /// This invalidates any in-flight requests.
+  void restoreFromSnapshot(PagingSnapshot<T> snapshot, {bool notify = true}) {
+    _generation++;
+    _error = null;
+    _items = List<T>.of(snapshot.items, growable: true);
+    _currentPage = snapshot.currentPage;
+    _hasMoreData = snapshot.hasMoreData;
+    _setState(snapshot.state);
+    _buildIndexMap();
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
   // Build item index map if key getter is provided
   void _buildIndexMap() {
     if (itemKeyGetter != null) {
@@ -188,16 +280,21 @@ class PagingController<T> extends ChangeNotifier {
   }
 
   /// Load the first page of data
-  Future<void> loadFirstPage() async {
-    if (isLoading) return;
+  Future<void> loadFirstPage({bool force = false}) async {
+    if (!force && isLoading) return;
 
-    _state = PagingState.loading;
+    final requestGeneration = ++_generation;
+    _setState(PagingState.loading);
     _error = null;
     notifyListeners();
 
     try {
       _currentPage = config.initialPage;
+      analytics?.onPageRequest?.call(_currentPage);
       final newItems = await pageFetcher(_currentPage);
+
+      // Ignore stale results.
+      if (requestGeneration != _generation) return;
 
       // Ensure internal list remains growable even if the fetcher returns a
       // fixed-length list (e.g., List.generate(..., growable: false)).
@@ -207,10 +304,22 @@ class PagingController<T> extends ChangeNotifier {
       // Check if we received less items than page size (means no more data)
       _hasMoreData = newItems.length >= config.pageSize;
 
-      _state = _items.isEmpty ? PagingState.empty : PagingState.loaded;
+      _setState(_items.isEmpty ? PagingState.empty : PagingState.loaded);
+      analytics?.onPageSuccess?.call(
+        _currentPage,
+        List<T>.unmodifiable(newItems),
+        isFirstPage: true,
+      );
     } catch (e, stackTrace) {
+      if (requestGeneration != _generation) return;
       _error = e;
-      _state = PagingState.error;
+      _setState(PagingState.error);
+      analytics?.onPageError?.call(
+        _currentPage,
+        e,
+        stackTrace,
+        isFirstPage: true,
+      );
       debugPrint('Error loading first page: $e\n$stackTrace');
     }
 
@@ -225,12 +334,19 @@ class PagingController<T> extends ChangeNotifier {
     // Don't load more if in error or empty state
     if (_state == PagingState.error || _state == PagingState.empty) return;
 
-    _state = PagingState.loadingMore;
+    final requestGeneration = _generation;
+    _setState(PagingState.loadingMore);
     notifyListeners();
 
     try {
-      _currentPage++;
-      final newItems = await pageFetcher(_currentPage);
+      final nextPage = _currentPage + 1;
+      analytics?.onPageRequest?.call(nextPage);
+      final newItems = await pageFetcher(nextPage);
+
+      // Ignore stale results.
+      if (requestGeneration != _generation) return;
+
+      _currentPage = nextPage;
 
       // For pagination buttons mode, replace items instead of appending
       if (!config.infiniteScroll) {
@@ -261,15 +377,29 @@ class PagingController<T> extends ChangeNotifier {
       // Check if we got less than page size
       if (newItems.length < config.pageSize) {
         _hasMoreData = false;
-        _state = PagingState.completed;
+        _setState(PagingState.completed);
       } else {
-        _state = PagingState.loaded;
+        _setState(PagingState.loaded);
       }
+
+      analytics?.onPageSuccess?.call(
+        _currentPage,
+        List<T>.unmodifiable(newItems),
+        isFirstPage: false,
+      );
     } catch (e, stackTrace) {
+      if (requestGeneration != _generation) return;
       _error = e;
-      _state = PagingState.error;
-      _currentPage--; // Rollback page increment on error
+      _setState(PagingState.error);
       debugPrint('Error loading next page: $e\n$stackTrace');
+
+      // Keep current page unchanged since we only commit on success.
+      analytics?.onPageError?.call(
+        _currentPage + 1,
+        e,
+        stackTrace,
+        isFirstPage: false,
+      );
     }
 
     notifyListeners();
@@ -314,24 +444,42 @@ class PagingController<T> extends ChangeNotifier {
     // Don't load if already loading
     if (isLoading) return;
 
-    _state = PagingState.loadingMore;
+    final requestGeneration = _generation;
+    _setState(PagingState.loadingMore);
     notifyListeners();
 
     try {
-      _currentPage--;
-      final newItems = await pageFetcher(_currentPage);
+      final previousPage = _currentPage - 1;
+      analytics?.onPageRequest?.call(previousPage);
+      final newItems = await pageFetcher(previousPage);
 
-      _items = newItems;
+      if (requestGeneration != _generation) return;
+
+      _currentPage = previousPage;
+      _items = List<T>.of(newItems, growable: true);
       _buildIndexMap();
 
       // Reset hasMoreData since we went back
       _hasMoreData = true;
-      _state = PagingState.loaded;
+      _setState(PagingState.loaded);
+
+      analytics?.onPageSuccess?.call(
+        _currentPage,
+        List<T>.unmodifiable(newItems),
+        isFirstPage: false,
+      );
     } catch (e, stackTrace) {
+      if (requestGeneration != _generation) return;
       _error = e;
-      _state = PagingState.error;
-      _currentPage++; // Rollback page decrement on error
+      _setState(PagingState.error);
       debugPrint('Error loading previous page: $e\n$stackTrace');
+
+      analytics?.onPageError?.call(
+        _currentPage - 1,
+        e,
+        stackTrace,
+        isFirstPage: false,
+      );
     }
 
     notifyListeners();
@@ -339,10 +487,13 @@ class PagingController<T> extends ChangeNotifier {
 
   /// Refresh the entire list (reload from first page)
   Future<void> refresh() async {
+    // Invalidate any in-flight requests.
+    _generation++;
     _items.clear();
     _itemIndexMap?.clear();
     _hasMoreData = true;
-    await loadFirstPage();
+    _error = null;
+    await loadFirstPage(force: true);
   }
 
   /// Update a single item by key or predicate
@@ -442,7 +593,7 @@ class PagingController<T> extends ChangeNotifier {
 
     // Update state if was empty
     if (_state == PagingState.empty) {
-      _state = PagingState.loaded;
+      _setState(PagingState.loaded);
     }
 
     notifyListeners();
@@ -459,7 +610,7 @@ class PagingController<T> extends ChangeNotifier {
 
     // Update state if was empty
     if (_state == PagingState.empty) {
-      _state = PagingState.loaded;
+      _setState(PagingState.loaded);
     }
 
     notifyListeners();
@@ -470,7 +621,7 @@ class PagingController<T> extends ChangeNotifier {
     if (_state == PagingState.error) {
       if (_items.isEmpty) {
         // Retry first page
-        await loadFirstPage();
+        await loadFirstPage(force: true);
       } else {
         // Retry next page
         await loadNextPage();
@@ -480,6 +631,7 @@ class PagingController<T> extends ChangeNotifier {
 
   @override
   void dispose() {
+    _generation++;
     _items.clear();
     _itemIndexMap?.clear();
     super.dispose();

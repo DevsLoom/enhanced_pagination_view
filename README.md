@@ -33,7 +33,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  enhanced_pagination_view: ^1.0.0
+  enhanced_pagination_view: ^1.1.0
 ```
 
 ## 🎯 Quick Start
@@ -69,6 +69,7 @@ EnhancedPaginationView<ProfileModel>(
 ```
 
 ### 2. Pagination with Buttons
+## 💾 Cache + Restore State (Snapshot)
 
 ```dart
 final controller = PagingController<ProfileModel>(
@@ -88,6 +89,7 @@ EnhancedPaginationView<ProfileModel>(
 )
 ```
 
+## 📊 Analytics Hooks
 ### 3. Update Items Without Refresh ⚡
 
 The killer feature! Update individual items in the list:
@@ -108,6 +110,7 @@ controller.removeItem(
 controller.insertItem(0, newProfile);
 
 // Append to end
+## 🧭 Restore Scroll Position
 controller.appendItem(newProfile);
 ```
 
@@ -127,6 +130,7 @@ EnhancedPaginationView<ProfileModel>(
         CircularProgressIndicator(),
         SizedBox(height: 16),
         Text('Loading profiles...'),
+
       ],
     ),
   ),

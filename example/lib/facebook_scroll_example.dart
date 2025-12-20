@@ -35,6 +35,14 @@ class _FacebookScrollExampleState extends State<FacebookScrollExample> {
         await Future.delayed(const Duration(milliseconds: 800));
         return await FakeApiService.fetchUsers(page);
       },
+      itemKeyGetter: (u) => u.id,
+      analytics: PagingAnalytics<User>(
+        onPageRequest: (page) =>
+            debugPrint('[FacebookScroll] Request page $page'),
+        onPageError: (page, error, _, {required isFirstPage}) => debugPrint(
+          '[FacebookScroll] Error page $page (first=$isFirstPage): $error',
+        ),
+      ),
     );
   }
 
@@ -249,6 +257,9 @@ class _FacebookScrollExampleState extends State<FacebookScrollExample> {
           Expanded(
             child: EnhancedPaginationView<User>(
               controller: _controller,
+              scrollViewKey: const PageStorageKey<String>(
+                'facebook-scroll-example',
+              ),
               itemBuilder: (context, user, index) {
                 return Card(
                   margin: const EdgeInsets.symmetric(

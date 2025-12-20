@@ -25,6 +25,13 @@ class _AnimationsExampleState extends State<AnimationsExample> {
     _pagingController = PagingController<UserModel>(
       config: const PagingConfig(pageSize: 10, infiniteScroll: true),
       pageFetcher: _fetchPage,
+      itemKeyGetter: (u) => u.id.toString(),
+      analytics: PagingAnalytics<UserModel>(
+        onPageRequest: (page) => debugPrint('[Animations] Request page $page'),
+        onPageError: (page, error, _, {required isFirstPage}) => debugPrint(
+          '[Animations] Error page $page (first=$isFirstPage): $error',
+        ),
+      ),
     );
   }
 
@@ -158,6 +165,9 @@ class _AnimationsExampleState extends State<AnimationsExample> {
           Expanded(
             child: EnhancedPaginationView<UserModel>(
               controller: _pagingController,
+              scrollViewKey: const PageStorageKey<String>(
+                'animations-example-scroll',
+              ),
               enableItemAnimations: _animationsEnabled,
               animationDuration: _animationDuration,
               animationCurve: _animationCurve,

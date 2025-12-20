@@ -229,6 +229,12 @@ class _InfiniteScrollExampleState extends State<InfiniteScrollExample> {
       ),
       pageFetcher: (page) => FakeApiService.fetchUsers(page),
       itemKeyGetter: (user) => user.id,
+      analytics: PagingAnalytics<User>(
+        onPageRequest: (page) => debugPrint('[InfiniteScroll] page $page'),
+        onPageError: (page, error, _, {required isFirstPage}) => debugPrint(
+          '[InfiniteScroll] error page $page (first=$isFirstPage): $error',
+        ),
+      ),
     );
   }
 
@@ -252,6 +258,7 @@ class _InfiniteScrollExampleState extends State<InfiniteScrollExample> {
       ),
       body: EnhancedPaginationView<User>(
         controller: _controller,
+        scrollViewKey: const PageStorageKey<String>('main-infinite-scroll'),
         itemBuilder: (context, user, index) {
           return ListTile(
             leading: CircleAvatar(
@@ -300,6 +307,12 @@ class _PaginationButtonsExampleState extends State<PaginationButtonsExample> {
       ),
       pageFetcher: (page) => FakeApiService.fetchUsers(page),
       itemKeyGetter: (user) => user.id,
+      analytics: PagingAnalytics<User>(
+        onPageRequest: (page) => debugPrint('[PaginationButtons] page $page'),
+        onPageError: (page, error, _, {required isFirstPage}) => debugPrint(
+          '[PaginationButtons] error page $page (first=$isFirstPage): $error',
+        ),
+      ),
     );
   }
 
@@ -315,6 +328,9 @@ class _PaginationButtonsExampleState extends State<PaginationButtonsExample> {
       appBar: AppBar(title: const Text('Pagination Buttons')),
       body: EnhancedPaginationView<User>(
         controller: _controller,
+        scrollViewKey: const PageStorageKey<String>(
+          'main-pagination-buttons-scroll',
+        ),
         itemBuilder: (context, user, index) {
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -351,6 +367,12 @@ class _ItemUpdatesExampleState extends State<ItemUpdatesExample> {
       config: const PagingConfig(pageSize: 20),
       pageFetcher: (page) => FakeApiService.fetchUsers(page),
       itemKeyGetter: (user) => user.id,
+      analytics: PagingAnalytics<User>(
+        onPageRequest: (page) => debugPrint('[ItemUpdates] page $page'),
+        onPageError: (page, error, _, {required isFirstPage}) => debugPrint(
+          '[ItemUpdates] error page $page (first=$isFirstPage): $error',
+        ),
+      ),
     );
   }
 
@@ -483,6 +505,9 @@ class _ItemUpdatesExampleState extends State<ItemUpdatesExample> {
               Expanded(
                 child: EnhancedPaginationView<User>(
                   controller: _controller,
+                  scrollViewKey: const PageStorageKey<String>(
+                    'main-item-updates-scroll',
+                  ),
                   itemBuilder: (context, user, index) {
                     return Card(
                       margin: const EdgeInsets.symmetric(
@@ -570,6 +595,12 @@ class _ErrorHandlingExampleState extends State<ErrorHandlingExample> {
       pageFetcher: (page) =>
           FakeApiService.fetchUsers(page, simulateError: _simulateError),
       itemKeyGetter: (user) => user.id,
+      analytics: PagingAnalytics<User>(
+        onPageRequest: (page) => debugPrint('[ErrorHandling] page $page'),
+        onPageError: (page, error, _, {required isFirstPage}) => debugPrint(
+          '[ErrorHandling] error page $page (first=$isFirstPage): $error',
+        ),
+      ),
     );
   }
 
@@ -612,6 +643,9 @@ class _ErrorHandlingExampleState extends State<ErrorHandlingExample> {
       ),
       body: EnhancedPaginationView<User>(
         controller: _controller,
+        scrollViewKey: const PageStorageKey<String>(
+          'main-error-handling-scroll',
+        ),
         itemBuilder: (context, user, index) {
           return ListTile(
             leading: CircleAvatar(child: Text(user.name.substring(0, 1))),
