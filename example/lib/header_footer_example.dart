@@ -18,16 +18,21 @@ class _HeaderFooterExampleState extends State<HeaderFooterExample> {
   void initState() {
     super.initState();
     _controller = PagingController<User>(
-      config: PagingConfig(
-        pageSize: 20,
-        infiniteScroll: true,
-      ),
+      config: PagingConfig(pageSize: 20, infiniteScroll: true),
       pageFetcher: (page) async {
         final users = await FakeApiService.fetchUsers(page);
         _totalItems += users.length;
         setState(() {});
         return users;
       },
+      itemKeyGetter: (u) => u.id,
+      analytics: PagingAnalytics<User>(
+        onPageRequest: (page) =>
+            debugPrint('[HeaderFooter] Request page $page'),
+        onPageError: (page, error, _, {required isFirstPage}) => debugPrint(
+          '[HeaderFooter] Error page $page (first=$isFirstPage): $error',
+        ),
+      ),
     );
   }
 
@@ -47,7 +52,10 @@ class _HeaderFooterExampleState extends State<HeaderFooterExample> {
       ),
       body: EnhancedPaginationView<User>(
         controller: _controller,
-        
+        scrollViewKey: const PageStorageKey<String>(
+          'header-footer-example-scroll',
+        ),
+
         // Header widget - Search bar
         header: Container(
           padding: const EdgeInsets.all(16),
@@ -97,7 +105,7 @@ class _HeaderFooterExampleState extends State<HeaderFooterExample> {
             ],
           ),
         ),
-        
+
         // Footer widget - Stats & Info
         footer: Container(
           padding: const EdgeInsets.all(16),
@@ -115,14 +123,14 @@ class _HeaderFooterExampleState extends State<HeaderFooterExample> {
                 children: [
                   _buildStatCard('Total', _totalItems, Icons.people),
                   _buildStatCard(
-                    'Online', 
-                    _controller.items.where((u) => u.isOnline).length, 
+                    'Online',
+                    _controller.items.where((u) => u.isOnline).length,
                     Icons.circle,
                     color: Colors.green,
                   ),
                   _buildStatCard(
-                    'Offline', 
-                    _controller.items.where((u) => !u.isOnline).length, 
+                    'Offline',
+                    _controller.items.where((u) => !u.isOnline).length,
                     Icons.circle_outlined,
                     color: Colors.grey,
                   ),
@@ -140,7 +148,7 @@ class _HeaderFooterExampleState extends State<HeaderFooterExample> {
             ],
           ),
         ),
-        
+
         itemBuilder: (context, user, index) {
           // Filter by search query
           if (_searchQuery.isNotEmpty &&
@@ -174,17 +182,20 @@ class _HeaderFooterExampleState extends State<HeaderFooterExample> {
             ),
           );
         },
-        
-        onEmpty: const Center(
-          child: Text('No users found'),
-        ),
-        
+
+        onEmpty: const Center(child: Text('No users found')),
+
         enablePullToRefresh: true,
       ),
     );
   }
 
-  Widget _buildStatCard(String label, int value, IconData icon, {Color? color}) {
+  Widget _buildStatCard(
+    String label,
+    int value,
+    IconData icon, {
+    Color? color,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -198,18 +209,9 @@ class _HeaderFooterExampleState extends State<HeaderFooterExample> {
           const SizedBox(height: 4),
           Text(
             value.toString(),
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
         ],
       ),
     );

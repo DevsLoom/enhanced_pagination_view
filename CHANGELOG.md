@@ -1,3 +1,13 @@
+## 1.1.0 - 2025-12-19
+
+### Added
+- `PagingController.snapshot()` / `restoreFromSnapshot(...)` to cache and restore paging state (items, page index, flags).
+- `PagingAnalytics<T>` hooks for page request/success/error and state-change tracking.
+- `EnhancedPaginationView.scrollViewKey` to support scroll position restoration via `PageStorageKey`.
+
+### Improved
+- Concurrency safety: stale in-flight page results are ignored after `refresh()`/restore.
+
 ## 1.0.0 - 2025-12-19
 
 ### 🎉 Initial Release
