@@ -1,4 +1,4 @@
-library enhanced_pagination_view;
+library;
 
 /// Enhanced Pagination View - A powerful pagination package for Flutter
 ///
@@ -9,6 +9,8 @@ library enhanced_pagination_view;
 /// - Pull-to-refresh support
 /// - Customizable UI for all states
 /// - Built-in error handling and retry
+/// - Facebook-style prefetch with item-based or pixel-based control
+/// - Smart cache management (all/none/limited)
 ///
 /// Example usage:
 /// ```dart
@@ -16,7 +18,10 @@ library enhanced_pagination_view;
 /// final controller = PagingController<MyModel>(
 ///   config: PagingConfig(
 ///     pageSize: 20,
-///     infiniteScroll: true, // or false for pagination buttons
+///     infiniteScroll: true,
+///     prefetchItemCount: 5, // Load when last 5 items visible
+///     cacheMode: CacheMode.limited, // Keep only 500 items
+///     maxCachedItems: 500,
 ///   ),
 ///   pageFetcher: (page) async {
 ///     return await api.fetchData(page);

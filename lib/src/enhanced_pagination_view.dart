@@ -53,6 +53,9 @@ class EnhancedPaginationView<T> extends StatefulWidget {
   /// Widget to show at the bottom while loading more items
   final Widget? bottomLoader;
 
+  /// Widget to show when all data has been loaded (completed state)
+  final Widget? onCompleted;
+
   /// Enable pull-to-refresh
   final bool enablePullToRefresh;
 
@@ -104,6 +107,15 @@ class EnhancedPaginationView<T> extends StatefulWidget {
   /// Cross axis alignment for wrap layout
   final WrapCrossAlignment wrapCrossAlignment;
 
+  /// Enable item animations (fade-in effect)
+  final bool enableItemAnimations;
+
+  /// Animation duration for items
+  final Duration animationDuration;
+
+  /// Animation curve for items
+  final Curve animationCurve;
+
   const EnhancedPaginationView({
     super.key,
     required this.controller,
@@ -112,6 +124,7 @@ class EnhancedPaginationView<T> extends StatefulWidget {
     this.onError,
     this.initialLoader,
     this.bottomLoader,
+    this.onCompleted,
     this.enablePullToRefresh = true,
     this.scrollDirection = Axis.vertical,
     this.physics,
@@ -129,6 +142,9 @@ class EnhancedPaginationView<T> extends StatefulWidget {
     this.wrapRunSpacing = 8.0,
     this.wrapAlignment = WrapAlignment.start,
     this.wrapCrossAlignment = WrapCrossAlignment.start,
+    this.enableItemAnimations = true,
+    this.animationDuration = const Duration(milliseconds: 300),
+    this.animationCurve = Curves.easeInOut,
   }) : assert(
          layoutMode != PaginationLayoutMode.grid || gridDelegate != null,
          'gridDelegate is required when layoutMode is grid',
@@ -186,15 +202,53 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
     }
   }
 
-  // Infinite scroll listener
+  // Infinite scroll listener with prefetch support
   void _onScroll() {
     if (!widget.controller.config.infiniteScroll) return;
 
-    // Check if we're near the end of the list
+    final config = widget.controller.config;
+    final items = widget.controller.items;
+
+    // Priority 1: Item-based prefetch (Facebook-style)
+    if (config.prefetchItemCount > 0) {
+      // Calculate first visible item index
+      final scrollController = _scrollController;
+      final itemCount = items.length;
+
+      // Estimate visible items based on scroll position
+      // This is approximate - for exact calculation would need item heights
+      final scrollPercentage =
+          scrollController.position.pixels /
+          scrollController.position.maxScrollExtent;
+      final approximateVisibleIndex = (itemCount * scrollPercentage).floor();
+
+      // Check if we're within last N items
+      final remainingItems = itemCount - approximateVisibleIndex;
+      if (remainingItems <= config.prefetchItemCount) {
+        // Load more if not already loading and has more data
+        if (!widget.controller.isLoading && widget.controller.hasMoreData) {
+          widget.controller.loadNextPage();
+        }
+      }
+      return;
+    }
+
+    // Priority 2: Pixel-based prefetch
+    if (config.prefetchDistance > 0) {
+      final threshold = config.prefetchDistance;
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - threshold) {
+        if (!widget.controller.isLoading && widget.controller.hasMoreData) {
+          widget.controller.loadNextPage();
+        }
+      }
+      return;
+    }
+
+    // Priority 3: Default behavior using invisibleItemsThreshold
+    final threshold = config.invisibleItemsThreshold * 100.0;
     if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent -
-            (widget.controller.config.invisibleItemsThreshold * 100)) {
-      // Load more if not already loading and has more data
+        _scrollController.position.maxScrollExtent - threshold) {
       if (!widget.controller.isLoading && widget.controller.hasMoreData) {
         widget.controller.loadNextPage();
       }
@@ -282,7 +336,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
         delegate: SliverChildBuilderDelegate((context, index) {
           final itemIndex = index ~/ 2;
           if (index.isEven) {
-            return widget.itemBuilder(context, items[itemIndex], itemIndex);
+            return _buildAnimatedItem(context, items[itemIndex], itemIndex);
           }
           return widget.separatorBuilder!(context, itemIndex);
         }, childCount: items.length * 2 - 1),
@@ -292,9 +346,35 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
     // Use SliverList without separators
     return SliverList(
       delegate: SliverChildBuilderDelegate(
-        (context, index) => widget.itemBuilder(context, items[index], index),
+        (context, index) => _buildAnimatedItem(context, items[index], index),
         childCount: items.length,
       ),
+    );
+  }
+
+  /// Build item with optional animation
+  Widget _buildAnimatedItem(BuildContext context, T item, int index) {
+    final child = widget.itemBuilder(context, item, index);
+
+    if (!widget.enableItemAnimations) {
+      return child;
+    }
+
+    // Animate items with staggered delay based on index
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: widget.animationDuration,
+      curve: widget.animationCurve,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 20 * (1 - value)),
+            child: child,
+          ),
+        );
+      },
+      child: child,
     );
   }
 
@@ -404,7 +484,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
         color: Theme.of(context).cardColor,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 4,
             offset: const Offset(0, -2),
           ),
@@ -418,11 +498,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
             onPressed:
                 widget.controller.currentPage >
                     widget.controller.config.initialPage
-                ? () {
-                    // Note: Going to previous page requires reimplementation
-                    // For now, just refresh
-                    widget.controller.refresh();
-                  }
+                ? widget.controller.loadPreviousPage
                 : null,
             icon: const Icon(Icons.chevron_left),
             label: const Text('Previous'),
@@ -432,7 +508,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withOpacity(0.1),
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(

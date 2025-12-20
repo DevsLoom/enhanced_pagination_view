@@ -1,5 +1,17 @@
 import 'package:flutter/foundation.dart';
 
+/// Cache management mode for infinite scroll
+enum CacheMode {
+  /// Keep all previous items in memory (default)
+  all,
+
+  /// Don't cache any previous items
+  none,
+
+  /// Keep only a specific number of items (use maxCachedItems)
+  limited,
+}
+
 /// Represents the current state of pagination
 enum PagingState {
   /// Initial state before any data is loaded
@@ -42,12 +54,40 @@ class PagingConfig {
   /// When user scrolls within this many items from the end, load next page
   final int invisibleItemsThreshold;
 
+  /// Prefetch distance in pixels from the bottom
+  /// When user scrolls within this distance, trigger next page load
+  /// Set to 0 to disable prefetch (use prefetchItemCount or invisibleItemsThreshold instead)
+  final double prefetchDistance;
+
+  /// Prefetch based on item count (Facebook-style)
+  /// When user reaches last N items, trigger next page load
+  /// Example: prefetchItemCount = 5 means load starts when last 5 items are visible
+  /// Set to 0 to disable item-based prefetch
+  final int prefetchItemCount;
+
+  /// Keep alive recent pages in memory for faster back navigation
+  /// Set to 0 to disable caching
+  final int keepAlivePages;
+
+  /// Cache management mode for infinite scroll
+  /// Controls how many previous items to keep in memory
+  final CacheMode cacheMode;
+
+  /// Maximum number of items to cache when cacheMode is CacheMode.limited
+  /// Example: maxCachedItems = 500 keeps only last 500 items in memory
+  final int maxCachedItems;
+
   const PagingConfig({
     this.pageSize = 20,
     this.infiniteScroll = true,
     this.initialPage = 0,
     this.autoLoadFirstPage = true,
     this.invisibleItemsThreshold = 3,
+    this.prefetchDistance = 0.0,
+    this.prefetchItemCount = 0,
+    this.keepAlivePages = 0,
+    this.cacheMode = CacheMode.all,
+    this.maxCachedItems = 500,
   });
 }
 
@@ -173,7 +213,15 @@ class PagingController<T> extends ChangeNotifier {
       _currentPage++;
       final newItems = await pageFetcher(_currentPage);
 
-      _items.addAll(newItems);
+      // For pagination buttons mode, replace items instead of appending
+      if (!config.infiniteScroll) {
+        _items = newItems;
+      } else {
+        _items.addAll(newItems);
+        // Apply cache management based on cacheMode
+        _applyCacheManagement();
+      }
+
       _buildIndexMap();
 
       // Check if we got less than page size
@@ -188,6 +236,57 @@ class PagingController<T> extends ChangeNotifier {
       _state = PagingState.error;
       _currentPage--; // Rollback page increment on error
       debugPrint('Error loading next page: $e\n$stackTrace');
+    }
+
+    notifyListeners();
+  }
+
+  /// Apply cache management to limit memory usage
+  void _applyCacheManagement() {
+    if (config.cacheMode == CacheMode.none) {
+      // Keep only the current page items
+      final currentPageItems = config.pageSize;
+      if (_items.length > currentPageItems) {
+        _items = _items.sublist(_items.length - currentPageItems);
+      }
+    } else if (config.cacheMode == CacheMode.limited) {
+      // Keep only maxCachedItems
+      if (_items.length > config.maxCachedItems) {
+        _items = _items.sublist(_items.length - config.maxCachedItems);
+      }
+    }
+    // CacheMode.all keeps everything (no action needed)
+  }
+
+  /// Load the previous page of data (for pagination buttons mode only)
+  Future<void> loadPreviousPage() async {
+    // Only works for pagination buttons mode
+    if (config.infiniteScroll) return;
+
+    // Can't go before initial page
+    if (_currentPage <= config.initialPage) return;
+
+    // Don't load if already loading
+    if (isLoading) return;
+
+    _state = PagingState.loadingMore;
+    notifyListeners();
+
+    try {
+      _currentPage--;
+      final newItems = await pageFetcher(_currentPage);
+
+      _items = newItems;
+      _buildIndexMap();
+
+      // Reset hasMoreData since we went back
+      _hasMoreData = true;
+      _state = PagingState.loaded;
+    } catch (e, stackTrace) {
+      _error = e;
+      _state = PagingState.error;
+      _currentPage++; // Rollback page decrement on error
+      debugPrint('Error loading previous page: $e\n$stackTrace');
     }
 
     notifyListeners();

@@ -1,6 +1,4 @@
-import 'header_footer_example.dart';
 import 'package:flutter/material.dart';
-import 'layouts_example.dart';
 import 'package:enhanced_pagination_view/enhanced_pagination_view.dart';
 
 void main() {
@@ -113,7 +111,7 @@ class HomeScreen extends StatelessWidget {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.2),
+                  color: color.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(Icons.arrow_forward, color: color, size: 30),
@@ -133,10 +131,7 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       description,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                   ],
                 ),
@@ -176,7 +171,10 @@ class User {
 
 // Fake API service
 class FakeApiService {
-  static Future<List<User>> fetchUsers(int page, {bool simulateError = false}) async {
+  static Future<List<User>> fetchUsers(
+    int page, {
+    bool simulateError = false,
+  }) async {
     // Simulate network delay
     await Future.delayed(const Duration(seconds: 1));
 
@@ -187,12 +185,12 @@ class FakeApiService {
     // Generate 20 users per page
     final List<User> users = [];
     final startIndex = page * 20;
-    
+
     for (int i = 0; i < 20; i++) {
       final userIndex = startIndex + i;
       // Stop at 100 users (5 pages)
       if (userIndex >= 100) break;
-      
+
       users.add(
         User(
           id: 'user_$userIndex',
@@ -312,18 +310,14 @@ class _PaginationButtonsExampleState extends State<PaginationButtonsExample> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pagination Buttons'),
-      ),
+      appBar: AppBar(title: const Text('Pagination Buttons')),
       body: EnhancedPaginationView<User>(
         controller: _controller,
         itemBuilder: (context, user, index) {
           return Card(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: ListTile(
-              leading: CircleAvatar(
-                child: Text(user.name.substring(0, 1)),
-              ),
+              leading: CircleAvatar(child: Text(user.name.substring(0, 1))),
               title: Text(user.name),
               subtitle: Text(user.email),
             ),
@@ -406,9 +400,9 @@ class _ItemUpdatesExampleState extends State<ItemUpdatesExample> {
 
     _controller.insertItem(0, newUser);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Added new user at top')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Added new user at top')));
   }
 
   @override
@@ -464,8 +458,9 @@ class _ItemUpdatesExampleState extends State<ItemUpdatesExample> {
                       ),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor:
-                              user.isOnline ? Colors.green : Colors.grey,
+                          backgroundColor: user.isOnline
+                              ? Colors.green
+                              : Colors.grey,
                           child: Text(
                             user.name.substring(0, 1),
                             style: const TextStyle(color: Colors.white),
@@ -516,10 +511,7 @@ class _ItemUpdatesExampleState extends State<ItemUpdatesExample> {
             color: color,
           ),
         ),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ],
     );
   }
@@ -542,10 +534,8 @@ class _ErrorHandlingExampleState extends State<ErrorHandlingExample> {
     super.initState();
     _controller = PagingController<User>(
       config: const PagingConfig(pageSize: 20),
-      pageFetcher: (page) => FakeApiService.fetchUsers(
-        page,
-        simulateError: _simulateError,
-      ),
+      pageFetcher: (page) =>
+          FakeApiService.fetchUsers(page, simulateError: _simulateError),
       itemKeyGetter: (user) => user.id,
     );
   }
