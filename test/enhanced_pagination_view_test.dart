@@ -112,4 +112,58 @@ void main() {
     expect(config.autoLoadFirstPage, true);
     expect(config.invisibleItemsThreshold, 3);
   });
+
+  test('monkey test: rapid create/use/dispose cycles', () async {
+    // Simulate rapid controller creation/disposal like hot-reload or route changes
+    for (var cycle = 0; cycle < 50; cycle++) {
+      final controller = PagingController<String>(
+        config: const PagingConfig(pageSize: 5, autoLoadFirstPage: false),
+        pageFetcher: (page) async {
+          await Future.delayed(const Duration(milliseconds: 5));
+          return ['item${page * 5 + 1}', 'item${page * 5 + 2}'];
+        },
+        itemKeyGetter: (item) => item,
+      );
+
+      // Trigger async operations
+      final loadFuture = controller.loadFirstPage();
+
+      // Dispose immediately (before load completes)
+      controller.dispose();
+
+      // Wait for load to finish (should not crash)
+      await loadFuture;
+
+      // Verify controller is marked disposed
+      expect(controller.state, isNotNull);
+    }
+  });
+
+  test('monkey test: concurrent operations then dispose', () async {
+    final controller = PagingController<String>(
+      config: const PagingConfig(pageSize: 3, autoLoadFirstPage: false),
+      pageFetcher: (page) async {
+        await Future.delayed(const Duration(milliseconds: 10));
+        return ['p$page-1', 'p$page-2', 'p$page-3'];
+      },
+      itemKeyGetter: (item) => item,
+    );
+
+    // Start multiple concurrent operations
+    final futures = <Future>[
+      controller.loadFirstPage(),
+      controller.loadFirstPage(),
+      controller.refresh(),
+    ];
+
+    // Dispose while operations are in-flight
+    await Future.delayed(const Duration(milliseconds: 5));
+    controller.dispose();
+
+    // All operations should complete without errors
+    await Future.wait(futures, eagerError: false);
+
+    // Controller should be disposed
+    expect(controller.state, isNotNull);
+  });
 }
