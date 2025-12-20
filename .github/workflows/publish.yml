@@ -84,14 +84,16 @@ jobs:
       - name: Configure pub.dev token
         if: steps.publish_decision.outputs.should_publish == 'true'
         env:
-          PUB_TOKEN: ${{ secrets.PUB_TOKEN }}
+          PUB_CREDENTIALS: ${{ secrets.PUB_CREDENTIALS }}
         run: |
           set -euo pipefail
-          if [[ -z "${PUB_TOKEN:-}" ]]; then
-            echo "Missing PUB_TOKEN secret. Add it in GitHub: Settings → Secrets and variables → Actions." >&2
+          if [[ -z "${PUB_CREDENTIALS:-}" ]]; then
+            echo "Missing PUB_CREDENTIALS secret. Add it in GitHub: Settings → Secrets and variables → Actions." >&2
             exit 1
           fi
-          dart pub token add https://pub.dev --env-var PUB_TOKEN
+          mkdir -p "$HOME/.config/dart"
+          printf '%s' "$PUB_CREDENTIALS" > "$HOME/.config/dart/pub-credentials.json"
+          chmod 600 "$HOME/.config/dart/pub-credentials.json"
 
       - name: Publish
         if: steps.publish_decision.outputs.should_publish == 'true'
