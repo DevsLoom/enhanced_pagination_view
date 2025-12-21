@@ -38,43 +38,65 @@ enum PagingState {
 
 /// Configuration for pagination behavior
 class PagingConfig {
-  /// Page size for each request
+  /// Number of items to load per page (default: 20)
   final int pageSize;
 
   /// Whether to use infinite scroll (true) or pagination buttons (false)
+  /// Default: true
   final bool infiniteScroll;
 
-  /// Initial page number (usually 0 or 1 based on your API)
+  /// Starting page number (usually 0 or 1 based on your API)
+  /// Default: 0
   final int initialPage;
 
-  /// Whether to automatically load the first page
+  /// Whether to automatically load the first page on controller creation
+  /// Default: true
   final bool autoLoadFirstPage;
 
-  /// Invisible threshold for infinite scroll
-  /// When user scrolls within this many items from the end, load next page
+  /// How many items before the end should trigger loading next page
+  ///
+  /// When user scrolls within this many items from the end, the next page loads.
+  /// Example: If set to 3, when user reaches the 3rd last item, next page loads.
+  ///
+  /// Default: 3
   final int invisibleItemsThreshold;
 
-  /// Prefetch distance in pixels from the bottom
-  /// When user scrolls within this distance, trigger next page load
-  /// Set to 0 to disable prefetch (use prefetchItemCount or invisibleItemsThreshold instead)
+  /// Distance in pixels from bottom to trigger loading next page
+  ///
+  /// When user scrolls within this distance from bottom, next page loads.
+  /// Set to 0 to disable pixel-based prefetch (use itemsBeforeEndToLoad instead).
+  ///
+  /// Default: 0 (disabled)
   final double prefetchDistance;
 
-  /// Prefetch based on item count (Facebook-style)
-  /// When user reaches last N items, trigger next page load
-  /// Example: prefetchItemCount = 5 means load starts when last 5 items are visible
-  /// Set to 0 to disable item-based prefetch
+  /// Number of items from end to trigger loading (Facebook-style)
+  ///
+  /// When user reaches this many items from the end, next page loads.
+  /// Example: If set to 5, loading starts when last 5 items become visible.
+  ///
+  /// Default: 0 (disabled, uses invisibleItemsThreshold instead)
   final int prefetchItemCount;
 
-  /// Keep alive recent pages in memory for faster back navigation
-  /// Set to 0 to disable caching
+  /// Number of recent pages to keep cached for faster back navigation
+  ///
+  /// Default: 0 (no caching)
   final int keepAlivePages;
 
-  /// Cache management mode for infinite scroll
-  /// Controls how many previous items to keep in memory
+  /// Cache management strategy for infinite scroll
+  ///
+  /// Controls how many previous items to keep in memory:
+  /// - [CacheMode.all] - Keep all items (may use lots of memory)
+  /// - [CacheMode.limited] - Keep up to [maxCachedItems] items (recommended)
+  /// - [CacheMode.none] - Keep only current page items
+  ///
+  /// Default: [CacheMode.limited]
   final CacheMode cacheMode;
 
-  /// Maximum number of items to cache when cacheMode is CacheMode.limited
+  /// Maximum number of items to cache when using [CacheMode.limited]
+  ///
   /// Example: maxCachedItems = 500 keeps only last 500 items in memory
+  ///
+  /// Default: 500
   final int maxCachedItems;
 
   const PagingConfig({
@@ -148,13 +170,20 @@ class PagingSnapshot<T> {
 /// This controller maintains the list of items, current page, and loading states.
 /// It provides methods to update, remove, and insert items without full refresh.
 ///
-/// Example:
+/// Simple usage (no item updates needed):
 /// ```dart
 /// final controller = PagingController<ProfileModel>(
-///   config: PagingConfig(pageSize: 20, infiniteScroll: true),
-///   pageFetcher: (page) async {
-///     return await fetchProfiles(page);
+///   fetchPage: (page) async {
+///     return await api.getProfiles(page);
 ///   },
+/// );
+/// ```
+///
+/// Advanced usage (with item updates):
+/// ```dart
+/// final controller = PagingController<ProfileModel>(
+///   fetchPage: (page) async => await api.getProfiles(page),
+///   getItemKey: (item) => item.id, // Required for updateItem/removeItem
 /// );
 /// ```
 class PagingController<T> extends ChangeNotifier {
@@ -165,8 +194,20 @@ class PagingController<T> extends ChangeNotifier {
   /// Takes current page number and returns list of items
   final Future<List<T>> Function(int page) pageFetcher;
 
-  /// Optional: Get unique key for each item (for efficient updates)
-  /// If not provided, uses item instance equality
+  /// Optional: Function to get unique key for each item
+  ///
+  /// **Required only if you need:**
+  /// - `updateItem()` - Fast O(1) item updates
+  /// - `removeItem()` by key - Fast O(1) item removal
+  ///
+  /// **Not required for:**
+  /// - Basic pagination (loadFirstPage, loadNextPage)
+  /// - Refresh, append, insert operations
+  ///
+  /// Example:
+  /// ```dart
+  /// getItemKey: (item) => item.id
+  /// ```
   final String Function(T item)? itemKeyGetter;
 
   /// Optional analytics callbacks.
@@ -181,6 +222,33 @@ class PagingController<T> extends ChangeNotifier {
     if (this.config.autoLoadFirstPage) {
       loadFirstPage();
     }
+  }
+
+  /// Create a simple controller with user-friendly parameter names
+  ///
+  /// Example:
+  /// ```dart
+  /// final controller = PagingController.simple(
+  ///   fetchPage: (page) async => await api.getProfiles(page),
+  ///   pageSize: 20,
+  /// );
+  /// ```
+  factory PagingController.simple({
+    required Future<List<T>> Function(int page) fetchPage,
+    int pageSize = 20,
+    bool infiniteScroll = true,
+    int startPage = 0,
+    bool autoLoad = true,
+  }) {
+    return PagingController(
+      pageFetcher: fetchPage,
+      config: PagingConfig(
+        pageSize: pageSize,
+        infiniteScroll: infiniteScroll,
+        initialPage: startPage,
+        autoLoadFirstPage: autoLoad,
+      ),
+    );
   }
 
   // Internal state
@@ -499,10 +567,21 @@ class PagingController<T> extends ChangeNotifier {
 
   /// Update a single item by key or predicate
   ///
-  /// If [itemKeyGetter] is provided, uses O(1) lookup by key
-  /// Otherwise, uses O(n) search by predicate
+  /// **Requires [itemKeyGetter] for O(1) key-based lookup**, or use [where] for O(n) search.
   ///
   /// Returns true if item was found and updated
+  ///
+  /// Example:
+  /// ```dart
+  /// // With itemKeyGetter (fast)
+  /// controller.updateItem(updatedProfile);
+  ///
+  /// // Without itemKeyGetter (slower)
+  /// controller.updateItem(
+  ///   updatedProfile,
+  ///   where: (item) => item.id == updatedProfile.id,
+  /// );
+  /// ```
   bool updateItem(T newItem, {bool Function(T item)? where}) {
     int index = -1;
 
@@ -515,6 +594,21 @@ class PagingController<T> extends ChangeNotifier {
     // Fall back to predicate search (O(n))
     if (index == -1 && where != null) {
       index = _items.indexWhere(where);
+    } else if (index == -1 && itemKeyGetter == null && where == null) {
+      throw StateError(
+        'updateItem() requires either:\n'
+        '  1. itemKeyGetter in PagingController constructor, OR\n'
+        '  2. where parameter to find the item\n'
+        '\n'
+        'Example with itemKeyGetter:\n'
+        '  PagingController(\n'
+        '    fetchPage: ...,\n'
+        '    getItemKey: (item) => item.id,\n'
+        '  )\n'
+        '\n'
+        'Example with where:\n'
+        '  controller.updateItem(newItem, where: (item) => item.id == newItem.id)',
+      );
     }
 
     if (index != -1) {
@@ -541,8 +635,45 @@ class PagingController<T> extends ChangeNotifier {
 
   /// Remove an item by key or predicate
   ///
+  /// **Requires [itemKeyGetter] for key-based removal**, or use [where] for predicate search.
+  ///
   /// Returns true if item was found and removed
+  ///
+  /// Example:
+  /// ```dart
+  /// // With itemKeyGetter (fast)
+  /// controller.removeItem(key: profile.id);
+  ///
+  /// // Without itemKeyGetter
+  /// controller.removeItem(where: (item) => item.id == profileId);
+  /// ```
   bool removeItem({String? key, bool Function(T item)? where}) {
+    if (key == null && where == null) {
+      throw ArgumentError(
+        'removeItem() requires either key or where parameter.\n'
+        '\n'
+        'Example with key (requires itemKeyGetter):\n'
+        '  controller.removeItem(key: "item-id")\n'
+        '\n'
+        'Example with where:\n'
+        '  controller.removeItem(where: (item) => item.id == "item-id")',
+      );
+    }
+
+    if (key != null && itemKeyGetter == null) {
+      throw StateError(
+        'removeItem(key: ...) requires itemKeyGetter in PagingController constructor.\n'
+        '\n'
+        'Example:\n'
+        '  PagingController(\n'
+        '    fetchPage: ...,\n'
+        '    getItemKey: (item) => item.id,\n'
+        '  )\n'
+        '\n'
+        'Or use removeItem(where: ...) instead.',
+      );
+    }
+
     int index = -1;
 
     // Try key-based lookup first

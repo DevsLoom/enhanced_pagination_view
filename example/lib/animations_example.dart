@@ -22,10 +22,10 @@ class _AnimationsExampleState extends State<AnimationsExample> {
   }
 
   void _initController() {
+    // Simple usage - no itemKeyGetter needed for basic pagination
     _pagingController = PagingController<UserModel>(
-      config: const PagingConfig(pageSize: 10, infiniteScroll: true),
+      config: const PagingConfig(pageSize: 10),
       pageFetcher: _fetchPage,
-      itemKeyGetter: (u) => u.id.toString(),
       analytics: PagingAnalytics<UserModel>(
         onPageRequest: (page) => debugPrint('[Animations] Request page $page'),
         onPageError: (page, error, _, {required isFirstPage}) => debugPrint(

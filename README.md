@@ -38,22 +38,18 @@ dependencies:
 
 ## 🎯 Quick Start
 
-### 1. Basic Infinite Scroll
+### Simple Usage (No Item Updates)
+
+Most use cases don't need item updates. Here's the simplest way:
 
 ```dart
 import 'package:enhanced_pagination_view/enhanced_pagination_view.dart';
 
-// Create controller
+// Create controller - itemKeyGetter is optional!
 final controller = PagingController<ProfileModel>(
-  config: PagingConfig(
-    pageSize: 20,
-    infiniteScroll: true,
-  ),
   pageFetcher: (page) async {
-    final response = await api.fetchProfiles(page);
-    return response.data;
+    return await api.fetchProfiles(page);
   },
-  itemKeyGetter: (item) => item.id, // For O(1) updates
 );
 
 // Use in widget
@@ -68,7 +64,33 @@ EnhancedPaginationView<ProfileModel>(
 )
 ```
 
-### 2. Pagination with Buttons
+**Or even simpler with the `.simple()` constructor:**
+
+```dart
+final controller = PagingController.simple<ProfileModel>(
+  fetchPage: (page) async => await api.fetchProfiles(page),
+  pageSize: 20,
+);
+```
+
+### Advanced Usage (With Item Updates)
+
+Need to update/remove individual items? Add `itemKeyGetter`:
+
+```dart
+// Create controller with itemKeyGetter for O(1) updates
+final controller = PagingController<ProfileModel>(
+  config: const PagingConfig(pageSize: 20),
+  pageFetcher: (page) async {
+    return await api.fetchProfiles(page);
+  },
+  itemKeyGetter: (item) => item.id, // Required for updateItem/removeItem
+);
+
+// Now you can update items efficiently
+controller.updateItem(updatedProfile);
+controller.removeItem(key: profile.id);
+```
 ## 💾 Cache + Restore State (Snapshot)
 
 ```dart
@@ -89,28 +111,63 @@ EnhancedPaginationView<ProfileModel>(
 )
 ```
 
-## 📊 Analytics Hooks
-### 3. Update Items Without Refresh ⚡
-
-The killer feature! Update individual items in the list:
+### Pagination with Buttons
 
 ```dart
-// Update a single item (O(1) with key getter)
+final controller = PagingController<ProfileModel>(
+  config: const PagingConfig(
+    pageSize: 20,
+    infiniteScroll: false, // Traditional pagination
+  ),
+  pageFetcher: (page) async {
+    return await api.fetchProfiles(page);
+  },
+);
+
+EnhancedPaginationView<ProfileModel>(
+  controller: controller,
+  itemBuilder: (context, item, index) => ProfileCard(item),
+  showPaginationButtons: true,
+)
+```
+
+### Update Items Without Refresh ⚡
+
+**With itemKeyGetter (fast O(1)):**
+```dart
+// Setup controller with itemKeyGetter
+final controller = PagingController<ProfileModel>(
+  pageFetcher: (page) async => await api.fetchProfiles(page),
+  itemKeyGetter: (item) => item.id, // Enable fast updates
+);
+
+// Update item by key (O(1) lookup)
+controller.updateItem(updatedProfile);
+
+// Remove item by key
+controller.removeItem(key: profile.id);
+```
+
+**Without itemKeyGetter (slower O(n) search):**
+```dart
+// Update using predicate
 controller.updateItem(
   updatedProfile,
   where: (profile) => profile.id == targetId,
 );
 
-// Remove an item
+// Remove using predicate
 controller.removeItem(
   where: (profile) => profile.id == targetId,
 );
+```
 
+**Other operations (no itemKeyGetter needed):**
+```dart
 // Insert at specific position
 controller.insertItem(0, newProfile);
 
 // Append to end
-## 🧭 Restore Scroll Position
 controller.appendItem(newProfile);
 ```
 
@@ -222,14 +279,20 @@ controller.loadNextPage()          // Load next page
 controller.refresh()               // Refresh from start
 controller.retry()                 // Retry after error
 
-// Item Management
-controller.updateItem(item)        // Update single item
-controller.removeItem(where: ...)  // Remove item
-controller.insertItem(index, item) // Insert at position
-controller.appendItem(item)        // Add to end
+// Item Management (requires itemKeyGetter for key-based operations)
+controller.updateItem(item)              // Update by key (O(1) if itemKeyGetter provided)
+controller.updateItem(item, where: ...)  // Update by predicate (O(n))
+controller.removeItem(key: '...')        // Remove by key (requires itemKeyGetter)
+controller.removeItem(where: ...)        // Remove by predicate
+controller.insertItem(index, item)       // Insert at position (no itemKeyGetter needed)
+controller.appendItem(item)              // Add to end (no itemKeyGetter needed)
+
+// State Snapshot/Restore (New in 1.1.0)
+final snapshot = controller.snapshot()   // Save current state
+controller.restoreFromSnapshot(snapshot) // Restore saved state
 
 // State Access
-controller.items                   // List of all items
+controller.items                   // List of all items (unmodifiable)
 controller.state                   // Current PagingState
 controller.currentPage             // Current page number
 controller.hasMoreData             // More pages available

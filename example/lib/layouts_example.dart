@@ -18,10 +18,10 @@ class _LayoutsExampleState extends State<LayoutsExample> {
   @override
   void initState() {
     super.initState();
+    // Simple usage without itemKeyGetter
     _controller = PagingController<User>(
-      config: PagingConfig(pageSize: 20, infiniteScroll: true),
+      config: const PagingConfig(pageSize: 20),
       pageFetcher: (page) => FakeApiService.fetchUsers(page),
-      itemKeyGetter: (u) => u.id,
       analytics: PagingAnalytics<User>(
         onPageRequest: (page) => debugPrint('[Layouts] Request page $page'),
         onPageError: (page, error, _, {required isFirstPage}) => debugPrint(

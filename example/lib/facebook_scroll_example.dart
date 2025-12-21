@@ -23,10 +23,10 @@ class _FacebookScrollExampleState extends State<FacebookScrollExample> {
   }
 
   void _initController() {
+    // Simple usage without itemKeyGetter
     _controller = PagingController<User>(
       config: PagingConfig(
         pageSize: 20,
-        infiniteScroll: true,
         prefetchItemCount: _prefetchItemCount,
         cacheMode: _cacheMode,
         maxCachedItems: _maxCachedItems,
@@ -35,7 +35,6 @@ class _FacebookScrollExampleState extends State<FacebookScrollExample> {
         await Future.delayed(const Duration(milliseconds: 800));
         return await FakeApiService.fetchUsers(page);
       },
-      itemKeyGetter: (u) => u.id,
       analytics: PagingAnalytics<User>(
         onPageRequest: (page) =>
             debugPrint('[FacebookScroll] Request page $page'),

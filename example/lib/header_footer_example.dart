@@ -17,15 +17,15 @@ class _HeaderFooterExampleState extends State<HeaderFooterExample> {
   @override
   void initState() {
     super.initState();
+    // Simple usage - no itemKeyGetter needed
     _controller = PagingController<User>(
-      config: PagingConfig(pageSize: 20, infiniteScroll: true),
+      config: const PagingConfig(pageSize: 20),
       pageFetcher: (page) async {
         final users = await FakeApiService.fetchUsers(page);
         _totalItems += users.length;
         setState(() {});
         return users;
       },
-      itemKeyGetter: (u) => u.id,
       analytics: PagingAnalytics<User>(
         onPageRequest: (page) =>
             debugPrint('[HeaderFooter] Request page $page'),

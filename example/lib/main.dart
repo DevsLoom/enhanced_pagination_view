@@ -221,14 +221,10 @@ class _InfiniteScrollExampleState extends State<InfiniteScrollExample> {
   @override
   void initState() {
     super.initState();
+    // Simple usage without itemKeyGetter
     _controller = PagingController<User>(
-      config: const PagingConfig(
-        pageSize: 20,
-        infiniteScroll: true,
-        invisibleItemsThreshold: 5,
-      ),
+      config: const PagingConfig(pageSize: 20, invisibleItemsThreshold: 5),
       pageFetcher: (page) => FakeApiService.fetchUsers(page),
-      itemKeyGetter: (user) => user.id,
       analytics: PagingAnalytics<User>(
         onPageRequest: (page) => debugPrint('[InfiniteScroll] page $page'),
         onPageError: (page, error, _, {required isFirstPage}) => debugPrint(
@@ -300,13 +296,13 @@ class _PaginationButtonsExampleState extends State<PaginationButtonsExample> {
   @override
   void initState() {
     super.initState();
+    // Simple usage without itemKeyGetter for pagination buttons
     _controller = PagingController<User>(
       config: const PagingConfig(
         pageSize: 20,
         infiniteScroll: false, // Use pagination buttons
       ),
       pageFetcher: (page) => FakeApiService.fetchUsers(page),
-      itemKeyGetter: (user) => user.id,
       analytics: PagingAnalytics<User>(
         onPageRequest: (page) => debugPrint('[PaginationButtons] page $page'),
         onPageError: (page, error, _, {required isFirstPage}) => debugPrint(
@@ -590,11 +586,11 @@ class _ErrorHandlingExampleState extends State<ErrorHandlingExample> {
   @override
   void initState() {
     super.initState();
+    // Simple usage without itemKeyGetter
     _controller = PagingController<User>(
       config: const PagingConfig(pageSize: 20),
       pageFetcher: (page) =>
           FakeApiService.fetchUsers(page, simulateError: _simulateError),
-      itemKeyGetter: (user) => user.id,
       analytics: PagingAnalytics<User>(
         onPageRequest: (page) => debugPrint('[ErrorHandling] page $page'),
         onPageError: (page, error, _, {required isFirstPage}) => debugPrint(
