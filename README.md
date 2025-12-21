@@ -33,7 +33,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  enhanced_pagination_view: ^1.1.0
+  enhanced_pagination_view: ^1.2.0
 ```
 
 ## 🎯 Quick Start

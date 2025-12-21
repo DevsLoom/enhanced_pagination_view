@@ -1,3 +1,30 @@
+## 1.2.0 - 2025-12-20
+
+### ⚡ Developer Experience Improvements
+
+#### Breaking Change
+- **`itemKeyGetter` is now optional**: No longer required for basic pagination use cases
+  - Only needed when using `updateItem()` or `removeItem(key: ...)`
+  - Basic pagination (load, refresh, append, insert) works without it
+  - Clear error messages guide developers when key-based operations require `itemKeyGetter`
+
+#### Added
+- `PagingController.simple()` factory constructor for beginner-friendly usage
+- Helpful error messages when attempting key-based operations without `itemKeyGetter`
+- Better parameter documentation with clear descriptions and examples
+
+#### Improved
+- Simplified all examples to remove unnecessary `itemKeyGetter` usage
+- Updated README with clear "Simple" vs "Advanced" usage patterns
+- Parameter documentation now explains when each feature is needed
+- All configuration parameters have improved descriptions
+
+#### Migration Guide
+No migration needed! This is a backward-compatible breaking change:
+- Existing code with `itemKeyGetter` continues to work exactly the same
+- New code can omit `itemKeyGetter` for simpler usage
+- Key-based `updateItem()` and `removeItem()` still require `itemKeyGetter`
+
 ## 1.1.0 - 2025-12-19
 
 ### Added
