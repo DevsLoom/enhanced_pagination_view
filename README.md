@@ -12,6 +12,7 @@ A powerful and flexible pagination package for Flutter that solves common pagina
 - 🚦 **Error Handling**: Automatic retry mechanism with error states
 - 📱 **Responsive**: Works with any scroll direction and physics
 - 🧩 **Type Safe**: Full TypeScript-like type safety with generics
+- 📐 **Multiple Layouts**: List, Grid, and Wrap layouts with full customization
 
 ## 🚀 Why Enhanced Pagination View?
 
@@ -411,7 +412,94 @@ If you find this package helpful, please ⭐ star the repo!
 
 For issues and feature requests, please use GitHub Issues.
 
-### 6. Header & Footer Support
+### 6. Multiple Layout Modes 📐
+
+Switch between List, Grid, and Wrap layouts dynamically:
+
+```dart
+EnhancedPaginationView<User>(
+  controller: controller,
+  
+  // Layout mode: list (default), grid, or wrap
+  layoutMode: PaginationLayoutMode.grid,
+  
+  // Grid configuration (required for grid layout)
+  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: 2,
+    childAspectRatio: 0.8,
+    crossAxisSpacing: 8,
+    mainAxisSpacing: 8,
+  ),
+  
+  itemBuilder: (context, user, index) {
+    return Card(
+      child: Column(
+        children: [
+          CircleAvatar(child: Text(user.name[0])),
+          Text(user.name),
+        ],
+      ),
+    );
+  },
+)
+```
+
+**List Layout** (default):
+```dart
+EnhancedPaginationView<User>(
+  controller: controller,
+  layoutMode: PaginationLayoutMode.list,  // Default
+  scrollDirection: Axis.vertical,  // or Axis.horizontal
+  itemBuilder: (context, user, index) => UserListTile(user),
+)
+```
+
+**Grid Layout**:
+```dart
+EnhancedPaginationView<User>(
+  controller: controller,
+  layoutMode: PaginationLayoutMode.grid,
+  scrollDirection: Axis.vertical,  // or Axis.horizontal
+  
+  // Required for grid layout
+  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+    crossAxisCount: 3,
+    childAspectRatio: 1.0,
+    crossAxisSpacing: 12,
+    mainAxisSpacing: 12,
+  ),
+  
+  itemBuilder: (context, user, index) => UserGridCard(user),
+)
+```
+
+**Wrap Layout** (for tags/chips):
+```dart
+EnhancedPaginationView<Tag>(
+  controller: controller,
+  layoutMode: PaginationLayoutMode.wrap,
+  wrapSpacing: 8,
+  wrapRunSpacing: 8,
+  wrapAlignment: WrapAlignment.start,
+  
+  itemBuilder: (context, tag, index) {
+    return Chip(
+      label: Text(tag.name),
+      avatar: CircleAvatar(child: Text(tag.name[0])),
+    );
+  },
+)
+```
+
+**Layout Features:**
+- 📋 List layout with optional separators
+- 🎛️ Grid layout with flexible or fixed cross-axis count
+- 🏷️ Wrap layout for chips and tags
+- ↔️ Both vertical and horizontal scrolling
+- 🎨 Full control over spacing and alignment
+- ⚡ Optimized using Sliver widgets
+
+### 7. Header & Footer Support
 
 Add sticky headers and footers to your pagination view:
 

@@ -1,3 +1,16 @@
+## 1.2.1 - 2025-12-22
+
+### Fixed
+- **Grid and Wrap layouts**: Fixed `_buildSliverList` method to properly handle grid and wrap layout modes
+  - Grid layout now correctly uses `SliverGrid` with the provided `gridDelegate`
+  - Wrap layout now properly wraps items using `SliverToBoxAdapter` with `Wrap` widget
+  - Both vertical and horizontal scroll directions now work correctly for grid layouts
+
+### Documentation
+- Added comprehensive layout examples to README with List, Grid, and Wrap configurations
+- Added layouts example to the demo app showcase
+- Updated feature list to highlight multiple layout support
+
 ## 1.2.0 - 2025-12-20
 
 ### ⚡ Developer Experience Improvements

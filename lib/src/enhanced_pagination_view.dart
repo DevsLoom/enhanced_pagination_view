@@ -338,8 +338,38 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
   }
 
   Widget _buildSliverList(List<T> items, PagingState state) {
+    // Handle grid layout
+    if (widget.layoutMode == PaginationLayoutMode.grid) {
+      return SliverGrid(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => _buildAnimatedItem(context, items[index], index),
+          childCount: items.length,
+        ),
+        gridDelegate: widget.gridDelegate!,
+      );
+    }
+
+    // Handle wrap layout
+    if (widget.layoutMode == PaginationLayoutMode.wrap) {
+      return SliverToBoxAdapter(
+        child: Wrap(
+          spacing: widget.wrapSpacing,
+          runSpacing: widget.wrapRunSpacing,
+          alignment: widget.wrapAlignment,
+          crossAxisAlignment: widget.wrapCrossAlignment,
+          children: items
+              .asMap()
+              .entries
+              .map(
+                (entry) => _buildAnimatedItem(context, entry.value, entry.key),
+              )
+              .toList(),
+        ),
+      );
+    }
+
+    // Handle list layout with separators
     if (widget.separatorBuilder != null) {
-      // Use SliverList with separators
       return SliverList(
         delegate: SliverChildBuilderDelegate((context, index) {
           final itemIndex = index ~/ 2;
@@ -351,7 +381,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
       );
     }
 
-    // Use SliverList without separators
+    // Use SliverList without separators (default list mode)
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) => _buildAnimatedItem(context, items[index], index),

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:enhanced_pagination_view/enhanced_pagination_view.dart';
+import 'layouts_example.dart';
 
 void main() {
   runApp(const MyApp());
@@ -86,6 +87,17 @@ class HomeScreen extends StatelessWidget {
               MaterialPageRoute(
                 builder: (context) => const ErrorHandlingExample(),
               ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildExampleCard(
+            context,
+            'Layouts',
+            'Grid, List, and Wrap layouts with scroll directions',
+            Colors.purple,
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const LayoutsExample()),
             ),
           ),
         ],
