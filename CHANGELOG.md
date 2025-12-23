@@ -1,3 +1,12 @@
+## 1.2.3 - 2025-12-23
+
+### Fixed
+- **Trim-compensation fail-safe**: Prevents "Duplicate GlobalKey detected" crashes by automatically disabling `compensateForTrimmedItems` when `itemKeyGetter` produces duplicate or empty keys.
+- **Separator + empty list**: Prevents crashes when using `separatorBuilder` with an empty list by ensuring `childCount` is `0` when `items.isEmpty`.
+
+### Tests
+- Added widget regression tests for duplicate/empty keys with trim compensation and separator + empty list scenarios.
+
 ## 1.2.2 - 2025-12-23
 
 ### Documentation
