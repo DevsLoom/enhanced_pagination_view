@@ -264,6 +264,110 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('pagination buttons mode: page number respects initialPage', (
+    WidgetTester tester,
+  ) async {
+    final controller = PagingController<String>(
+      config: const PagingConfig(
+        pageSize: 2,
+        autoLoadFirstPage: false,
+        infiniteScroll: false,
+        initialPage: 1,
+      ),
+      pageFetcher: (page) async {
+        if (page == 1) return const ['p1-1', 'p1-2'];
+        if (page == 2) return const ['p2-1', 'p2-2'];
+        return const <String>[];
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 400,
+            child: EnhancedPaginationView<String>(
+              controller: controller,
+              enablePullToRefresh: false,
+              enableItemAnimations: false,
+              itemBuilder: (context, item, index) => Text(item),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await controller.loadFirstPage();
+    await tester.pumpAndSettle();
+
+    // Should display human-friendly page 1 (relative to initialPage).
+    expect(find.text('Page 1'), findsOneWidget);
+    expect(find.text('p1-1'), findsOneWidget);
+
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Page 2'), findsOneWidget);
+    expect(find.text('p2-1'), findsOneWidget);
+
+    controller.dispose();
+  });
+
+  testWidgets(
+    'pagination buttons mode: pageSize limits visible items per page',
+    (WidgetTester tester) async {
+      final controller = PagingController<String>(
+        config: const PagingConfig(
+          pageSize: 3,
+          autoLoadFirstPage: false,
+          infiniteScroll: false,
+        ),
+        pageFetcher: (page) async {
+          if (page == 0) return const ['a1', 'a2', 'a3'];
+          if (page == 1) return const ['b1', 'b2', 'b3'];
+          return const <String>[];
+        },
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 400,
+              child: EnhancedPaginationView<String>(
+                controller: controller,
+                enablePullToRefresh: false,
+                enableItemAnimations: false,
+                itemBuilder: (context, item, index) => Text(item),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await controller.loadFirstPage();
+      await tester.pumpAndSettle();
+
+      expect(find.text('a1'), findsOneWidget);
+      expect(find.text('a2'), findsOneWidget);
+      expect(find.text('a3'), findsOneWidget);
+      expect(find.text('b1'), findsNothing);
+
+      await tester.tap(find.text('Next'));
+      await tester.pumpAndSettle();
+
+      // In pagination mode, items should swap (not append).
+      expect(find.text('a1'), findsNothing);
+      expect(find.text('a2'), findsNothing);
+      expect(find.text('a3'), findsNothing);
+      expect(find.text('b1'), findsOneWidget);
+      expect(find.text('b2'), findsOneWidget);
+      expect(find.text('b3'), findsOneWidget);
+
+      controller.dispose();
+    },
+  );
+
   testWidgets('pull-to-refresh triggers controller.refresh()', (
     WidgetTester tester,
   ) async {

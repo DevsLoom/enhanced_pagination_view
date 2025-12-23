@@ -692,7 +692,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              'Page ${widget.controller.currentPage + 1}',
+              'Page ${widget.controller.currentPage - widget.controller.config.initialPage + 1}',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Theme.of(context).primaryColor,
