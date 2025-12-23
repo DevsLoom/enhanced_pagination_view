@@ -1,581 +1,403 @@
-# Enhanced Pagination View 📜
 
-A powerful and flexible pagination package for Flutter that solves common pagination challenges with elegance.
+# Enhanced Pagination View
 
-## ✨ Features
+Enhanced Pagination View is a Flutter pagination package that supports both:
 
-- 🔄 **Dual Mode Support**: Choose between infinite scroll or traditional pagination buttons
-- ⚡ **O(1) Item Updates**: Update, remove, or insert items without full page refresh
-- 🎯 **Smart State Management**: Comprehensive states (loading, error, empty, completed)
-- 🔄 **Pull-to-Refresh**: Built-in refresh functionality
-- 🎨 **Fully Customizable**: Custom widgets for loading, error, empty, and pagination controls
-- 🚦 **Error Handling**: Automatic retry mechanism with error states
-- 📱 **Responsive**: Works with any scroll direction and physics
-- 🧩 **Type Safe**: Full TypeScript-like type safety with generics
-- 📐 **Multiple Layouts**: List, Grid, and Wrap layouts with full customization
+- Infinite scrolling (load more as the user scrolls)
+- Pagination buttons (Next/Previous)
 
-## 🚀 Why Enhanced Pagination View?
+It also gives you direct access to loaded items, so you can update/remove/insert items without reloading the whole list.
 
-Traditional pagination packages (like `pagination_view`) have limitations:
-- ❌ No direct access to loaded items
-- ❌ Can't update individual items without full refresh
-- ❌ Limited state management
-- ❌ No built-in item tracking
+## Installation
 
-**Enhanced Pagination View solves these:**
-- ✅ Direct item list access and manipulation
-- ✅ O(1) item updates using key-based lookup
-- ✅ Comprehensive state management
-- ✅ Built-in Map-based item tracking
-
-## 📦 Installation
-
-Add to your `pubspec.yaml`:
+Add this to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
   enhanced_pagination_view: ^1.2.2
 ```
 
-## 🎯 Quick Start
+## Quick start (infinite scroll)
 
-### Simple Usage (No Item Updates)
-
-Most use cases don't need item updates. Here's the simplest way:
+This is the most common setup.
 
 ```dart
 import 'package:enhanced_pagination_view/enhanced_pagination_view.dart';
 
-// Create controller - itemKeyGetter is optional!
-final controller = PagingController<ProfileModel>(
-  pageFetcher: (page) async {
-    return await api.fetchProfiles(page);
-  },
+final controller = PagingController<Profile>(
+  pageFetcher: (page) => api.fetchProfiles(page),
 );
 
-// Use in widget
-EnhancedPaginationView<ProfileModel>(
-  controller: controller,
-  itemBuilder: (context, item, index) {
-    return ListTile(
-      title: Text(item.name),
-      subtitle: Text(item.email),
+class ProfilesScreen extends StatelessWidget {
+  const ProfilesScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return EnhancedPaginationView<Profile>(
+      controller: controller,
+      itemBuilder: (context, item, index) {
+        return ListTile(
+          title: Text(item.name),
+          subtitle: Text(item.email),
+        );
+      },
     );
-  },
-)
+  }
+}
 ```
 
-**Or even simpler with the `.simple()` constructor:**
+You can also use the simpler constructor:
 
 ```dart
-final controller = PagingController.simple<ProfileModel>(
-  fetchPage: (page) async => await api.fetchProfiles(page),
+final controller = PagingController.simple<Profile>(
+  fetchPage: (page) => api.fetchProfiles(page),
   pageSize: 20,
 );
 ```
 
-### Advanced Usage (With Item Updates)
+## Pagination with buttons (Next/Previous)
 
-Need to update/remove individual items? Add `itemKeyGetter`:
-
-```dart
-// Create controller with itemKeyGetter for O(1) updates
-final controller = PagingController<ProfileModel>(
-  config: const PagingConfig(pageSize: 20),
-  pageFetcher: (page) async {
-    return await api.fetchProfiles(page);
-  },
-  itemKeyGetter: (item) => item.id, // Required for updateItem/removeItem
-);
-
-// Now you can update items efficiently
-controller.updateItem(updatedProfile);
-controller.removeItem(key: profile.id);
-```
-## 💾 Cache + Restore State (Snapshot)
+If you prefer classic pagination controls:
 
 ```dart
-final controller = PagingController<ProfileModel>(
-  config: PagingConfig(
-    pageSize: 20,
-    infiniteScroll: false, // Traditional pagination
-  ),
-  pageFetcher: (page) async {
-    return await api.fetchProfiles(page);
-  },
-);
-
-EnhancedPaginationView<ProfileModel>(
-  controller: controller,
-  itemBuilder: (context, item, index) => ProfileCard(item),
-  showPaginationButtons: true,
-)
-```
-
-### Pagination with Buttons
-
-```dart
-final controller = PagingController<ProfileModel>(
+final controller = PagingController<Profile>(
   config: const PagingConfig(
     pageSize: 20,
-    infiniteScroll: false, // Traditional pagination
+    infiniteScroll: false,
   ),
-  pageFetcher: (page) async {
-    return await api.fetchProfiles(page);
-  },
+  pageFetcher: (page) => api.fetchProfiles(page),
 );
 
-EnhancedPaginationView<ProfileModel>(
+EnhancedPaginationView<Profile>(
   controller: controller,
-  itemBuilder: (context, item, index) => ProfileCard(item),
   showPaginationButtons: true,
+  itemBuilder: (context, item, index) => ProfileCard(item),
 )
 ```
 
-### Update Items Without Refresh ⚡
+## Updating items (without full refresh)
 
-**With itemKeyGetter (fast O(1)):**
+### Fast updates (recommended)
+
+If your items have a stable unique ID (like `id`), pass `itemKeyGetter`. Then updates/removals are very fast.
+
 ```dart
-// Setup controller with itemKeyGetter
-final controller = PagingController<ProfileModel>(
-  pageFetcher: (page) async => await api.fetchProfiles(page),
-  itemKeyGetter: (item) => item.id, // Enable fast updates
+final controller = PagingController<Profile>(
+  pageFetcher: (page) => api.fetchProfiles(page),
+  itemKeyGetter: (item) => item.id,
 );
 
-// Update item by key (O(1) lookup)
 controller.updateItem(updatedProfile);
-
-// Remove item by key
-controller.removeItem(key: profile.id);
+controller.removeItem(key: updatedProfile.id);
 ```
 
-**Without itemKeyGetter (slower O(n) search):**
+### Updates without keys
+
+If you can’t provide a key, you can still update/remove by giving a condition (the controller will search the list).
+
 ```dart
-// Update using predicate
 controller.updateItem(
   updatedProfile,
-  where: (profile) => profile.id == targetId,
+  where: (p) => p.id == updatedProfile.id,
 );
 
-// Remove using predicate
 controller.removeItem(
-  where: (profile) => profile.id == targetId,
+  where: (p) => p.id == updatedProfile.id,
 );
 ```
 
-**Other operations (no itemKeyGetter needed):**
-```dart
-// Insert at specific position
-controller.insertItem(0, newProfile);
+Other useful operations:
 
-// Append to end
+```dart
+controller.insertItem(0, newProfile);
 controller.appendItem(newProfile);
 ```
 
-## 🎨 Customization
+## Layout modes (List / Grid / Wrap)
 
-### Custom Loading States
+EnhancedPaginationView supports multiple layouts.
 
-```dart
-EnhancedPaginationView<ProfileModel>(
-  controller: controller,
-  itemBuilder: (context, item, index) => ProfileCard(item),
-  
-  // Custom initial loader
-  initialLoader: Center(
-    child: Column(
-      children: [
-        CircularProgressIndicator(),
-        SizedBox(height: 16),
-        Text('Loading profiles...'),
-
-      ],
-    ),
-  ),
-  
-  // Custom bottom loader (infinite scroll)
-  bottomLoader: Padding(
-    padding: EdgeInsets.all(16),
-    child: CircularProgressIndicator(),
-  ),
-  
-  // Custom empty state
-  onEmpty: Center(
-    child: Column(
-      children: [
-        Icon(Icons.inbox, size: 64, color: Colors.grey),
-        Text('No profiles found'),
-      ],
-    ),
-  ),
-  
-  // Custom error state
-  onError: (error) => ErrorWidget(error: error),
-)
-```
-
-### Custom Pagination Controls
-
-```dart
-EnhancedPaginationView<ProfileModel>(
-  controller: controller,
-  itemBuilder: (context, item, index) => ProfileCard(item),
-  paginationBuilder: (controller) {
-    return Container(
-      padding: EdgeInsets.all(16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ElevatedButton(
-            onPressed: controller.currentPage > 0
-                ? controller.refresh
-                : null,
-            child: Text('First'),
-          ),
-          SizedBox(width: 8),
-          Text('Page ${controller.currentPage + 1}'),
-          SizedBox(width: 8),
-          ElevatedButton(
-            onPressed: controller.hasMoreData
-                ? controller.loadNextPage
-                : null,
-            child: Text('Next'),
-          ),
-        ],
-      ),
-    );
-  },
-)
-```
-
-## 🔧 Configuration
-
-### PagingConfig Options
-
-```dart
-PagingConfig(
-  pageSize: 20,                      // Items per page
-  infiniteScroll: true,              // true for infinite, false for buttons
-  initialPage: 0,                    // Starting page number
-  autoLoadFirstPage: true,           // Auto-load on init
-  invisibleItemsThreshold: 3,        // Trigger next page when 3 items from end
-  // Cache behavior (infiniteScroll only):
-  // Default keeps all items to avoid scroll-position “jumps” when old items
-  // are trimmed out.
-  cacheMode: CacheMode.all,
-  maxCachedItems: 500,
-  // If you use CacheMode.limited with variable-height items and you observe
-  // scroll jumps, opt in to best-effort compensation (requires itemKeyGetter).
-  compensateForTrimmedItems: false,
-)
-```
-
-Notes:
-- If you use a large `pageSize`, set `maxCachedItems >= pageSize`.
-- For “very large total datasets” (e.g. 1M+ over time), prefer `CacheMode.limited` or `CacheMode.none`.
-
-If you use `CacheMode.limited` (or `none`), the controller may trim items from the
-start of the list. This can change scroll extents and feel like a jump,
-especially with variable-height rows. To reduce this, set:
-- `itemKeyGetter` on `PagingController`
-- `compensateForTrimmedItems: true` in `PagingConfig`
-
-### Facebook-style Bounded Cache (Recommended for Huge Feeds)
-
-If you want a “Facebook-like” long-running feed (memory-bounded + smooth), use a
-limited cache window and enable trim compensation.
-
-```dart
-final controller = PagingController<Post>(
-  pageFetcher: (page) => api.fetchPosts(page),
-  itemKeyGetter: (post) => post.id, // Must be stable/unique
-  config: const PagingConfig(
-    cacheMode: CacheMode.limited,
-    maxCachedItems: 500, // Tune based on your UI + device constraints
-    compensateForTrimmedItems: true,
-  ),
-);
-```
-
-Tips:
-- `itemKeyGetter` is required here so the view can anchor a visible item and
-  best-effort preserve its screen position when older items are trimmed.
-- For variable-height items, `compensateForTrimmedItems` helps reduce perceived
-  “jumps”, but like all scroll stabilization techniques it’s best-effort.
-
-### Controller Methods
-
-```dart
-// Loading
-controller.loadFirstPage()         // Load first page
-controller.loadNextPage()          // Load next page
-controller.refresh()               // Refresh from start
-controller.retry()                 // Retry after error
-
-// Item Management (requires itemKeyGetter for key-based operations)
-controller.updateItem(item)              // Update by key (O(1) if itemKeyGetter provided)
-controller.updateItem(item, where: ...)  // Update by predicate (O(n))
-controller.removeItem(key: '...')        // Remove by key (requires itemKeyGetter)
-controller.removeItem(where: ...)        // Remove by predicate
-controller.insertItem(index, item)       // Insert at position (no itemKeyGetter needed)
-controller.appendItem(item)              // Add to end (no itemKeyGetter needed)
-
-// State Snapshot/Restore (New in 1.1.0)
-final snapshot = controller.snapshot()   // Save current state
-controller.restoreFromSnapshot(snapshot) // Restore saved state
-
-// State Access
-controller.items                   // List of all items (unmodifiable)
-controller.state                   // Current PagingState
-controller.currentPage             // Current page number
-controller.hasMoreData             // More pages available
-controller.error                   // Last error
-controller.isLoading               // Currently loading
-controller.itemCount               // Total items loaded
-```
-
-### PagingState Enum
-
-```dart
-enum PagingState {
-  initial,      // Before any data loaded
-  loading,      // Loading first page
-  loaded,       // Data loaded successfully
-  loadingMore,  // Loading additional pages
-  error,        // Error occurred
-  empty,        // No data available
-  completed,    // All data loaded
-}
-```
-
-## 💡 Real-World Example
-
-Here's how to use it in a voter management app:
-
-```dart
-class VotersController extends GetxController {
-  late PagingController<ProfileModel> pagingController;
-
-  @override
-  void onInit() {
-    super.onInit();
-    
-    pagingController = PagingController<ProfileModel>(
-      config: PagingConfig(
-        pageSize: 20,
-        infiniteScroll: true,
-      ),
-      pageFetcher: (page) => fetchVoters(page),
-      itemKeyGetter: (voter) => voter.id!,
-    );
-  }
-
-  Future<List<ProfileModel>> fetchVoters(int page) async {
-    final response = await api.get('/voters', 
-      params: {'page': page, 'limit': 20}
-    );
-    return (response.data as List)
-        .map((json) => ProfileModel.fromJson(json))
-        .toList();
-  }
-
-  // Update voter religion and reflect in UI immediately
-  Future<void> updateVoterReligion(String voterId, String religionId) async {
-    await api.patch('/voters/$voterId', {'religion_id': religionId});
-    
-    // Update local data - UI updates automatically!
-    pagingController.updateItem(
-      pagingController.items
-          .firstWhere((v) => v.id == voterId)
-          .copyWith(religionId: religionId),
-      where: (v) => v.id == voterId,
-    );
-  }
-
-  @override
-  void onClose() {
-    pagingController.dispose();
-    super.onClose();
-  }
-}
-
-class VotersScreen extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: EnhancedPaginationView<ProfileModel>(
-        controller: controller.pagingController,
-        itemBuilder: (context, voter, index) {
-          return VoterCard(voter: voter);
-        },
-        enablePullToRefresh: true,
-      ),
-    );
-  }
-}
-```
-
-## 🆚 Comparison with pagination_view
-
-| Feature | enhanced_pagination_view | pagination_view |
-|---------|-------------------------|-----------------|
-| Infinite Scroll | ✅ | ✅ |
-| Pagination Buttons | ✅ | ❌ |
-| Direct Item Access | ✅ | ❌ |
-| Update Single Item | ✅ (O(1)) | ❌ |
-| Remove Item | ✅ | ❌ |
-| Insert Item | ✅ | ❌ |
-| State Management | ✅ Comprehensive | ⚠️ Limited |
-| Error Retry | ✅ Built-in | ⚠️ Manual |
-| Pull-to-Refresh | ✅ | ❌ |
-| Custom Pagination UI | ✅ | ❌ |
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-MIT License - see LICENSE file for details
-
-## 💬 Support
-
-If you find this package helpful, please ⭐ star the repo!
-
-For issues and feature requests, please use GitHub Issues.
-
-### 6. Multiple Layout Modes 📐
-
-Switch between List, Grid, and Wrap layouts dynamically:
+### List
 
 ```dart
 EnhancedPaginationView<User>(
   controller: controller,
-  
-  // Layout mode: list (default), grid, or wrap
+  layoutMode: PaginationLayoutMode.list,
+  scrollDirection: Axis.vertical, // or Axis.horizontal
+  itemBuilder: (context, user, index) => UserTile(user),
+)
+```
+
+### Grid
+
+```dart
+EnhancedPaginationView<User>(
+  controller: controller,
   layoutMode: PaginationLayoutMode.grid,
-  
-  // Grid configuration (required for grid layout)
-  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
     crossAxisCount: 2,
-    childAspectRatio: 0.8,
     crossAxisSpacing: 8,
     mainAxisSpacing: 8,
   ),
-  
-  itemBuilder: (context, user, index) {
-    return Card(
-      child: Column(
-        children: [
-          CircleAvatar(child: Text(user.name[0])),
-          Text(user.name),
-        ],
-      ),
-    );
-  },
+  itemBuilder: (context, user, index) => UserCard(user),
 )
 ```
 
-**List Layout** (default):
-```dart
-EnhancedPaginationView<User>(
-  controller: controller,
-  layoutMode: PaginationLayoutMode.list,  // Default
-  scrollDirection: Axis.vertical,  // or Axis.horizontal
-  itemBuilder: (context, user, index) => UserListTile(user),
-)
-```
+### Wrap (chips/tags)
 
-**Grid Layout**:
-```dart
-EnhancedPaginationView<User>(
-  controller: controller,
-  layoutMode: PaginationLayoutMode.grid,
-  scrollDirection: Axis.vertical,  // or Axis.horizontal
-  
-  // Required for grid layout
-  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-    crossAxisCount: 3,
-    childAspectRatio: 1.0,
-    crossAxisSpacing: 12,
-    mainAxisSpacing: 12,
-  ),
-  
-  itemBuilder: (context, user, index) => UserGridCard(user),
-)
-```
-
-**Wrap Layout** (for tags/chips):
 ```dart
 EnhancedPaginationView<Tag>(
   controller: controller,
   layoutMode: PaginationLayoutMode.wrap,
   wrapSpacing: 8,
   wrapRunSpacing: 8,
-  wrapAlignment: WrapAlignment.start,
-  
-  itemBuilder: (context, tag, index) {
-    return Chip(
-      label: Text(tag.name),
-      avatar: CircleAvatar(child: Text(tag.name[0])),
-    );
-  },
+  itemBuilder: (context, tag, index) => Chip(label: Text(tag.name)),
 )
 ```
 
-**Layout Features:**
-- 📋 List layout with optional separators
-- 🎛️ Grid layout with flexible or fixed cross-axis count
-- 🏷️ Wrap layout for chips and tags
-- ↔️ Both vertical and horizontal scrolling
-- 🎨 Full control over spacing and alignment
-- ⚡ Optimized using Sliver widgets
+## Common UI customizations
 
-### 7. Header & Footer Support
-
-Add sticky headers and footers to your pagination view:
+You can plug in your own widgets for loading/empty/error states.
 
 ```dart
-EnhancedPaginationView<User>(
+EnhancedPaginationView<Profile>(
   controller: controller,
-  
-  // Sticky header widget
-  header: Container(
+  itemBuilder: (context, item, index) => ProfileCard(item),
+  initialLoader: const Center(child: CircularProgressIndicator()),
+  bottomLoader: const Padding(
     padding: EdgeInsets.all(16),
-    color: Colors.blue.shade50,
-    child: Column(
-      children: [
-        Text('Search Users', style: TextStyle(fontWeight: FontWeight.bold)),
-        TextField(
-          decoration: InputDecoration(hintText: 'Search...'),
-        ),
-      ],
-    ),
+    child: Center(child: CircularProgressIndicator()),
   ),
-  
-  // Footer widget (before pagination controls)
-  footer: Container(
-    padding: EdgeInsets.all(16),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        _buildStat('Total', totalCount),
-        _buildStat('Active', activeCount),
-        _buildStat('Inactive', inactiveCount),
-      ],
-    ),
-  ),
-  
-  itemBuilder: (context, user, index) {
-    return ListTile(title: Text(user.name));
-  },
+  onEmpty: const Center(child: Text('No items')),
+  onError: (error) => Center(child: Text('Error: $error')),
 )
 ```
 
-**Header/Footer Features:**
-- 📌 Sticky header that stays at top
-- 📊 Footer for stats/info display
-- 🎨 Fully customizable widgets
-- 🔄 Works with both infinite scroll and pagination modes
-- ⚡ Uses CustomScrollView for optimal performance
+Pull-to-refresh:
+
+```dart
+EnhancedPaginationView<Profile>(
+  controller: controller,
+  enablePullToRefresh: true,
+  itemBuilder: (context, item, index) => ProfileCard(item),
+)
+```
+
+Header / footer:
+
+```dart
+EnhancedPaginationView<Profile>(
+  controller: controller,
+  header: const Padding(
+    padding: EdgeInsets.all(16),
+    child: Text('Header'),
+  ),
+  footer: const Padding(
+    padding: EdgeInsets.all(16),
+    child: Text('Footer'),
+  ),
+  itemBuilder: (context, item, index) => ProfileCard(item),
+)
+```
+
+## Caching and memory (important)
+
+When you use infinite scroll, the controller keeps items in memory.
+
+### Default (safe for scroll stability)
+
+By default the package keeps all loaded items:
+
+```dart
+const PagingConfig(
+  cacheMode: CacheMode.all,
+)
+```
+
+This avoids “scroll jumps” that can happen if old items are removed from the start.
+
+### For very large feeds (Facebook-style bounded cache)
+
+If you have a huge feed and you want to limit memory usage, use a limited cache.
+
+Important: when the controller removes old items from the start (to save memory), scrolling can feel like it “jumps”.
+To reduce that, provide a stable key and enable `compensateForTrimmedItems`.
+
+```dart
+final controller = PagingController<Post>(
+  pageFetcher: (page) => api.fetchPosts(page),
+  itemKeyGetter: (post) => post.id,
+  config: const PagingConfig(
+    cacheMode: CacheMode.limited,
+    maxCachedItems: 500,
+    compensateForTrimmedItems: true,
+  ),
+);
+```
+
+Notes:
+
+- `itemKeyGetter` must be unique and stable.
+- `compensateForTrimmedItems` is best-effort (especially if item heights/widths vary), but it greatly reduces perceived jumps.
+- Works with both vertical and horizontal scrolling.
+
+## More options (optional, but useful)
+
+If you’re a beginner, you can ignore this section at first. Use it when you need extra control.
+
+### Prefetch (when to load the next page)
+
+You can control when the next page starts loading:
+
+- `invisibleItemsThreshold`: start loading when you are N items away from the end (simple)
+- `prefetchItemCount`: start loading when the last N items are already visible on screen
+- `prefetchDistance`: start loading when you are within X pixels of the end
+
+Beginner tip: usually you pick ONE approach. For example:
+
+- If you set `prefetchItemCount: 5`, the controller starts loading the next page when the last 5 items become visible.
+- If you set `prefetchDistance: 300`, the controller starts loading when you are ~300px away from the end.
+
+```dart
+final controller = PagingController<Post>(
+  pageFetcher: (page) => api.fetchPosts(page),
+  config: const PagingConfig(
+    pageSize: 20,
+    // Pick one strategy (or keep defaults):
+    invisibleItemsThreshold: 3,
+    prefetchItemCount: 0,
+    prefetchDistance: 0,
+  ),
+);
+```
+
+### Separators (List layout)
+
+If you want dividers between items:
+
+```dart
+EnhancedPaginationView<Profile>(
+  controller: controller,
+  layoutMode: PaginationLayoutMode.list,
+  separatorBuilder: (_, __) => const Divider(height: 1),
+  itemBuilder: (context, item, index) => ProfileTile(item),
+)
+```
+
+### Completed state ("no more items")
+
+```dart
+EnhancedPaginationView<Profile>(
+  controller: controller,
+  onCompleted: const Padding(
+    padding: EdgeInsets.all(16),
+    child: Center(child: Text('You reached the end')),
+  ),
+  itemBuilder: (context, item, index) => ProfileCard(item),
+)
+```
+
+### Custom pagination controls (when `infiniteScroll: false`)
+
+```dart
+EnhancedPaginationView<Profile>(
+  controller: controller,
+  showPaginationButtons: true,
+  paginationBuilder: (c) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        TextButton(
+          onPressed: c.currentPage > c.config.initialPage ? c.refresh : null,
+          child: const Text('First'),
+        ),
+        const SizedBox(width: 12),
+        Text('Page ${c.currentPage}'),
+        const SizedBox(width: 12),
+        TextButton(
+          onPressed: c.hasMoreData ? c.loadNextPage : null,
+          child: const Text('Next'),
+        ),
+      ],
+    );
+  },
+  itemBuilder: (context, item, index) => ProfileCard(item),
+)
+```
+
+### Scroll control + preserving scroll position
+
+- `scrollController`: pass your own controller if you want to scroll programmatically.
+- `scrollViewKey`: pass a `PageStorageKey` to let Flutter restore scroll offset automatically.
+
+```dart
+EnhancedPaginationView<Profile>(
+  controller: controller,
+  scrollViewKey: const PageStorageKey('profiles-feed'),
+  itemBuilder: (context, item, index) => ProfileCard(item),
+)
+```
+
+### Item animations
+
+```dart
+EnhancedPaginationView<Profile>(
+  controller: controller,
+  enableItemAnimations: true,
+  animationDuration: const Duration(milliseconds: 250),
+  animationCurve: Curves.easeOut,
+  itemBuilder: (context, item, index) => ProfileCard(item),
+)
+```
+
+### Analytics hooks (optional)
+
+If you want to log page loading (for debugging or metrics):
+
+```dart
+final controller = PagingController<Post>(
+  pageFetcher: (page) => api.fetchPosts(page),
+  analytics: PagingAnalytics<Post>(
+    onPageRequest: (page) => debugPrint('Request page $page'),
+    onPageSuccess: (page, items, {required isFirstPage}) {
+      debugPrint('Loaded page $page (${items.length} items)');
+    },
+    onPageError: (page, error, stack, {required isFirstPage}) {
+      debugPrint('Page $page failed: $error');
+    },
+  ),
+);
+```
+
+## Snapshot / restore
+
+If you want to save what’s currently loaded (for example: navigate away and come back without losing the feed):
+
+```dart
+final snapshot = controller.snapshot();
+controller.restoreFromSnapshot(snapshot);
+```
+
+## Useful controller methods
+
+```dart
+controller.loadFirstPage();
+controller.loadNextPage();
+controller.refresh();
+controller.retry();
+
+controller.items;
+controller.currentPage;
+controller.hasMoreData;
+controller.isLoading;
+controller.error;
+```
+
+## Contributing
+
+PRs are welcome. If you find a bug, please open an issue with a small repro.
+
+## License
+
+MIT. See LICENSE.
 
