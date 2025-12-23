@@ -547,6 +547,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
 
     // Handle list layout with separators
     if (widget.separatorBuilder != null) {
+      final childCount = items.isEmpty ? 0 : items.length * 2 - 1;
       return SliverList(
         delegate: SliverChildBuilderDelegate((context, index) {
           final itemIndex = index ~/ 2;
@@ -554,7 +555,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
             return _buildAnimatedItem(context, items[itemIndex], itemIndex);
           }
           return widget.separatorBuilder!(context, itemIndex);
-        }, childCount: items.length * 2 - 1),
+        }, childCount: childCount),
       );
     }
 
