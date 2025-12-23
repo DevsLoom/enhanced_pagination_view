@@ -344,4 +344,62 @@ void main() {
       controller.dispose();
     },
   );
+
+  testWidgets(
+    'Windowed mode (CacheMode.limited): heavy down + up scrolling stays stable',
+    (WidgetTester tester) async {
+      const viewportHeight = 600.0;
+      final controller = makeControllerWithCacheMode(CacheMode.limited);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: viewportHeight,
+              child: EnhancedPaginationView<String>(
+                controller: controller,
+                enablePullToRefresh: false,
+                physics: const ClampingScrollPhysics(),
+                enableItemAnimations: false,
+                layoutMode: PaginationLayoutMode.list,
+                itemBuilder: (context, item, index) {
+                  final height = 44.0 + ((index % 9) * 7.0);
+                  return SizedBox(
+                    height: height,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(item),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await controller.loadFirstPage();
+      await tester.pumpAndSettle();
+
+      // Heavy downward scrolling should not produce any visible backward jump.
+      await assertNoVisibleBackwardJump(
+        tester,
+        viewportHeight: viewportHeight,
+        iterations: 35,
+      );
+
+      // Push further down to ensure cache trimming kicks in.
+      await scrollManyTimes(tester, times: 60);
+
+      // Now scroll upward; within the cached window the visible top item should
+      // move backward (or stay), but never jump forward unexpectedly.
+      await assertNoVisibleForwardJumpWhenScrollingUp(
+        tester,
+        viewportHeight: viewportHeight,
+        iterations: 25,
+      );
+
+      controller.dispose();
+    },
+  );
 }
