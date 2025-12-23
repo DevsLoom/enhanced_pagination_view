@@ -346,6 +346,121 @@ void main() {
   );
 
   testWidgets(
+    'Windowed mode (CacheMode.none, Grid): down + up scrolling stays stable',
+    (WidgetTester tester) async {
+      const viewportHeight = 600.0;
+      final controller = makeControllerWithCacheMode(CacheMode.none);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: viewportHeight,
+              child: EnhancedPaginationView<String>(
+                controller: controller,
+                enablePullToRefresh: false,
+                physics: const ClampingScrollPhysics(),
+                enableItemAnimations: false,
+                layoutMode: PaginationLayoutMode.grid,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 2.5,
+                ),
+                itemBuilder: (context, item, index) {
+                  final padding = 8.0 + ((index % 5) * 2.0);
+                  return Container(
+                    padding: EdgeInsets.all(padding),
+                    alignment: Alignment.centerLeft,
+                    child: Text(item),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await controller.loadFirstPage();
+      await tester.pumpAndSettle();
+
+      await assertNoVisibleBackwardJump(
+        tester,
+        viewportHeight: viewportHeight,
+        iterations: 25,
+      );
+      await assertNoVisibleForwardJumpWhenScrollingUp(
+        tester,
+        viewportHeight: viewportHeight,
+        iterations: 10,
+      );
+
+      controller.dispose();
+    },
+  );
+
+  testWidgets(
+    'Windowed mode (CacheMode.none, Wrap): down + up scrolling stays stable',
+    (WidgetTester tester) async {
+      const viewportHeight = 600.0;
+      final controller = makeControllerWithCacheMode(CacheMode.none);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: viewportHeight,
+              child: EnhancedPaginationView<String>(
+                controller: controller,
+                enablePullToRefresh: false,
+                physics: const ClampingScrollPhysics(),
+                enableItemAnimations: false,
+                layoutMode: PaginationLayoutMode.wrap,
+                wrapSpacing: 8,
+                wrapRunSpacing: 8,
+                itemBuilder: (context, item, index) {
+                  final w = 90.0 + ((index % 4) * 25.0);
+                  final h = 32.0 + ((index % 6) * 6.0);
+                  return SizedBox(
+                    width: w,
+                    height: h,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.black12),
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(item),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await controller.loadFirstPage();
+      await tester.pumpAndSettle();
+
+      await assertNoVisibleBackwardJump(
+        tester,
+        viewportHeight: viewportHeight,
+        iterations: 25,
+      );
+      await assertNoVisibleForwardJumpWhenScrollingUp(
+        tester,
+        viewportHeight: viewportHeight,
+        iterations: 10,
+      );
+
+      controller.dispose();
+    },
+  );
+
+  testWidgets(
     'Windowed mode (CacheMode.limited): heavy down + up scrolling stays stable',
     (WidgetTester tester) async {
       const viewportHeight = 600.0;
