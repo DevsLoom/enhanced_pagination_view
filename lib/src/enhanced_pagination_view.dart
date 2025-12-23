@@ -173,7 +173,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
   final Map<String, GlobalKey> _itemGlobalKeys = <String, GlobalKey>{};
   List<String>? _previousItemKeys;
   String? _pendingAnchorKey;
-  double? _pendingAnchorDy;
+  double? _pendingAnchorMainAxis;
   bool _trimAdjustmentScheduled = false;
 
   @override
@@ -225,13 +225,14 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
     return _itemGlobalKeys.putIfAbsent(itemKey, () => GlobalKey());
   }
 
-  double? _currentDyForKey(String itemKey) {
+  double? _currentMainAxisForKey(String itemKey) {
     final key = _itemGlobalKeys[itemKey];
     final context = key?.currentContext;
     if (context == null) return null;
     final renderObject = context.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.hasSize) return null;
-    return renderObject.localToGlobal(Offset.zero).dy;
+    final origin = renderObject.localToGlobal(Offset.zero);
+    return widget.scrollDirection == Axis.horizontal ? origin.dx : origin.dy;
   }
 
   void _prepareTrimCompensation() {
@@ -239,7 +240,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
     if (!config.compensateForTrimmedItems) {
       _previousItemKeys = null;
       _pendingAnchorKey = null;
-      _pendingAnchorDy = null;
+      _pendingAnchorMainAxis = null;
       return;
     }
 
@@ -249,10 +250,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
       return;
     }
 
-    // Only handle vertical scrolling for now.
-    if (widget.scrollDirection != Axis.vertical) {
-      return;
-    }
+    // Supports both vertical and horizontal scroll directions.
 
     // No trimming => no need to stabilize.
     if (config.cacheMode == CacheMode.all) {
@@ -282,34 +280,34 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
       return;
     }
 
-    // Capture the anchor's screen position before rebuild.
-    final anchorDy = _currentDyForKey(anchorKey);
-    if (anchorDy == null) return;
+    // Capture the anchor's screen position (main axis) before rebuild.
+    final anchorMainAxis = _currentMainAxisForKey(anchorKey);
+    if (anchorMainAxis == null) return;
 
     _pendingAnchorKey = anchorKey;
-    _pendingAnchorDy = anchorDy;
+    _pendingAnchorMainAxis = anchorMainAxis;
   }
 
   void _schedulePostFrameTrimAdjustment() {
     if (_trimAdjustmentScheduled) return;
     final anchorKey = _pendingAnchorKey;
-    final anchorDy = _pendingAnchorDy;
-    if (anchorKey == null || anchorDy == null) return;
+    final anchorMainAxis = _pendingAnchorMainAxis;
+    if (anchorKey == null || anchorMainAxis == null) return;
 
     _trimAdjustmentScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _trimAdjustmentScheduled = false;
       if (!mounted) return;
 
-      final newDy = _currentDyForKey(anchorKey);
-      if (newDy == null) return;
+      final newMainAxis = _currentMainAxisForKey(anchorKey);
+      if (newMainAxis == null) return;
 
-      // If anchor moved up (newDy < oldDy), add spacer to push it back down.
-      final delta = newDy - anchorDy;
+      // If anchor moved toward the start (new < old), add spacer to push it back.
+      final delta = newMainAxis - anchorMainAxis;
       final spacerDelta = -delta;
       if (spacerDelta.abs() < 0.5) {
         _pendingAnchorKey = null;
-        _pendingAnchorDy = null;
+        _pendingAnchorMainAxis = null;
         return;
       }
 
@@ -319,7 +317,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
       });
 
       _pendingAnchorKey = null;
-      _pendingAnchorDy = null;
+      _pendingAnchorMainAxis = null;
     });
   }
 
@@ -422,17 +420,20 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
         // Leading spacer for windowed-mode trimming stabilization.
         if (config.compensateForTrimmedItems &&
             config.cacheMode != CacheMode.all &&
-            _leadingTrimSpacerExtent > 0 &&
-            widget.scrollDirection == Axis.vertical)
+            _leadingTrimSpacerExtent > 0)
           (widget.padding != null)
               ? SliverPadding(
                   padding: widget.padding!,
                   sliver: SliverToBoxAdapter(
-                    child: SizedBox(height: _leadingTrimSpacerExtent),
+                    child: widget.scrollDirection == Axis.horizontal
+                        ? SizedBox(width: _leadingTrimSpacerExtent)
+                        : SizedBox(height: _leadingTrimSpacerExtent),
                   ),
                 )
               : SliverToBoxAdapter(
-                  child: SizedBox(height: _leadingTrimSpacerExtent),
+                  child: widget.scrollDirection == Axis.horizontal
+                      ? SizedBox(width: _leadingTrimSpacerExtent)
+                      : SizedBox(height: _leadingTrimSpacerExtent),
                 ),
 
         // Add padding if provided

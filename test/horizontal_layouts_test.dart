@@ -9,9 +9,9 @@ void main() {
         pageSize: 10,
         autoLoadFirstPage: false,
         infiniteScroll: true,
-        // Trim compensation is currently vertical-only.
-        compensateForTrimmedItems: false,
-        cacheMode: CacheMode.all,
+        cacheMode: CacheMode.limited,
+        maxCachedItems: 15,
+        compensateForTrimmedItems: true,
       ),
       pageFetcher: (page) async {
         if (page >= 3) return const <String>[];
@@ -56,7 +56,7 @@ void main() {
               itemBuilder: (context, item, index) {
                 // Give items a width so horizontal scrolling has something to do.
                 return SizedBox(
-                  width: 140,
+                  width: 60,
                   height: 60,
                   child: Align(
                     alignment: Alignment.centerLeft,
@@ -84,6 +84,20 @@ void main() {
 
     expect(find.text('Item 0'), findsOneWidget);
 
+    // Capture an on-screen anchor position before trimming.
+    final anchor = find.text('Item 5');
+    expect(anchor, findsOneWidget);
+    final beforeDx = tester.getTopLeft(anchor).dx;
+
+    // Trigger a load that causes trimming (maxCachedItems=15, pageSize=10).
+    await controller.loadNextPage();
+    await tester.pumpAndSettle();
+
+    // Anchor should remain roughly in the same screen position.
+    expect(anchor, findsOneWidget);
+    final afterDx = tester.getTopLeft(anchor).dx;
+    expect((afterDx - beforeDx).abs(), lessThan(2.0));
+
     await tester.fling(
       find.byType(CustomScrollView),
       const Offset(-900, 0),
@@ -107,6 +121,10 @@ void main() {
 
     expect(find.text('Item 0'), findsOneWidget);
 
+    // Ensure trim-compensation path can run without crashing.
+    await controller.loadNextPage();
+    await tester.pumpAndSettle();
+
     await tester.fling(
       find.byType(CustomScrollView),
       const Offset(-900, 0),
@@ -128,6 +146,10 @@ void main() {
     );
 
     expect(find.text('Item 0'), findsOneWidget);
+
+    // Ensure trim-compensation path can run without crashing.
+    await controller.loadNextPage();
+    await tester.pumpAndSettle();
 
     await tester.fling(
       find.byType(CustomScrollView),
