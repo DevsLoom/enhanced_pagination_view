@@ -50,6 +50,29 @@ void main() {
     );
   }
 
+  PagingController<String> makeControllerWithCacheMode(CacheMode cacheMode) {
+    return PagingController<String>(
+      config: PagingConfig(
+        pageSize: 20,
+        autoLoadFirstPage: false,
+        infiniteScroll: true,
+        prefetchDistance: 200,
+        cacheMode: cacheMode,
+        maxCachedItems: 100,
+        compensateForTrimmedItems: true,
+      ),
+      pageFetcher: (page) async {
+        if (page >= 60) return const <String>[];
+        return List<String>.generate(
+          20,
+          (i) => 'Item ${page * 20 + i}',
+          growable: false,
+        );
+      },
+      itemKeyGetter: (s) => s,
+    );
+  }
+
   Future<void> scrollManyTimes(
     WidgetTester tester, {
     required int times,
@@ -84,6 +107,32 @@ void main() {
 
       if (lastTop != null) {
         expect(top, greaterThanOrEqualTo(lastTop));
+      }
+      lastTop = top;
+    }
+  }
+
+  Future<void> assertNoVisibleForwardJumpWhenScrollingUp(
+    WidgetTester tester, {
+    required double viewportHeight,
+    required int iterations,
+  }) async {
+    int? lastTop;
+
+    for (var i = 0; i < iterations; i++) {
+      // Positive dy drags the content down (scrolling up).
+      await tester.fling(
+        find.byType(CustomScrollView),
+        const Offset(0, 700),
+        2500,
+      );
+      await tester.pumpAndSettle();
+
+      final top = topMostVisibleItemNumber(viewportHeight: viewportHeight);
+      if (top == null) continue;
+
+      if (lastTop != null) {
+        expect(top, lessThanOrEqualTo(lastTop));
       }
       lastTop = top;
     }
@@ -240,4 +289,59 @@ void main() {
 
     controller.dispose();
   });
+
+  testWidgets(
+    'Windowed mode (CacheMode.none): down + up scrolling stays stable',
+    (WidgetTester tester) async {
+      const viewportHeight = 600.0;
+      final controller = makeControllerWithCacheMode(CacheMode.none);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: viewportHeight,
+              child: EnhancedPaginationView<String>(
+                controller: controller,
+                enablePullToRefresh: false,
+                physics: const ClampingScrollPhysics(),
+                enableItemAnimations: false,
+                layoutMode: PaginationLayoutMode.list,
+                itemBuilder: (context, item, index) {
+                  final height = 44.0 + ((index % 9) * 7.0);
+                  return SizedBox(
+                    height: height,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(item),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await controller.loadFirstPage();
+      await tester.pumpAndSettle();
+
+      // Scroll down for a while; top-most visible item should never go backwards.
+      await assertNoVisibleBackwardJump(
+        tester,
+        viewportHeight: viewportHeight,
+        iterations: 25,
+      );
+
+      // Now scroll back up; within the current window, we should be able to
+      // scroll upward without sudden forward jumps.
+      await assertNoVisibleForwardJumpWhenScrollingUp(
+        tester,
+        viewportHeight: viewportHeight,
+        iterations: 10,
+      );
+
+      controller.dispose();
+    },
+  );
 }
