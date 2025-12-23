@@ -14,7 +14,7 @@ Add this to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  enhanced_pagination_view: ^1.2.2
+  enhanced_pagination_view: ^1.2.3
 ```
 
 ## Quick start (infinite scroll)
@@ -399,5 +399,5 @@ PRs are welcome. If you find a bug, please open an issue with a small repro.
 
 ## License
 
-MIT. See LICENSE.
+MIT. See [LICENSE](LICENSE).
 

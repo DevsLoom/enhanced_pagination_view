@@ -1,3 +1,9 @@
+## 1.2.3 - 2025-12-23
+
+### Documentation
+- Rewrote README in a more beginner-friendly tone and added clearer explanations/examples.
+- Added a clickable LICENSE link in README.
+
 ## 1.2.2 - 2025-12-23
 
 ### Fixed
