@@ -89,7 +89,7 @@ class PagingConfig {
   /// - [CacheMode.limited] - Keep up to [maxCachedItems] items (recommended)
   /// - [CacheMode.none] - Keep only current page items
   ///
-  /// Default: [CacheMode.limited]
+  /// Default: [CacheMode.all]
   final CacheMode cacheMode;
 
   /// Maximum number of items to cache when using [CacheMode.limited]
@@ -98,6 +98,22 @@ class PagingConfig {
   ///
   /// Default: 500
   final int maxCachedItems;
+
+  /// Whether to compensate scroll offset when items are trimmed from the start
+  /// of the list due to cache management.
+  ///
+  /// This is primarily useful when using [CacheMode.limited] or [CacheMode.none]
+  /// with infinite scroll. Without compensation, removing items from the start
+  /// can change the scrollable content extent and cause a perceived “jump”.
+  ///
+  /// Notes:
+  /// - For variable-height items, best results require the view to measure item
+  ///   extents; this is done in [EnhancedPaginationView] when enabled.
+  /// - Requires [PagingController.itemKeyGetter] to be set so items can be
+  ///   tracked across rebuilds.
+  ///
+  /// Default: false
+  final bool compensateForTrimmedItems;
 
   const PagingConfig({
     this.pageSize = 20,
@@ -108,10 +124,14 @@ class PagingConfig {
     this.prefetchDistance = 0.0,
     this.prefetchItemCount = 0,
     this.keepAlivePages = 0,
-    // Default to a bounded cache for realistic production usage.
-    // This avoids unbounded memory growth when scrolling through large datasets.
-    this.cacheMode = CacheMode.limited,
+    // Default to keeping all items to avoid scroll-position jumps when older
+    // items are trimmed out of the list (which can feel like a sudden “extra
+    // scroll” after long usage). If you need memory bounds, use
+    // `CacheMode.limited`, but be aware it can affect scroll stability unless
+    // your UI compensates for removed item extents.
+    this.cacheMode = CacheMode.all,
     this.maxCachedItems = 500,
+    this.compensateForTrimmedItems = false,
   });
 }
 
@@ -389,7 +409,6 @@ class PagingController<T> extends ChangeNotifier {
         stackTrace,
         isFirstPage: true,
       );
-      debugPrint('Error loading first page: $e\n$stackTrace');
     }
 
     _safeNotifyListeners();
@@ -400,11 +419,15 @@ class PagingController<T> extends ChangeNotifier {
     // Don't load if already loading or no more data
     if (isLoading || !_hasMoreData) return;
 
-    // Don't load more if in error or empty state
-    if (_state == PagingState.error || _state == PagingState.empty) return;
+    // Don't load more if in empty state.
+    // If we're in error state *with existing items*, we allow retrying the
+    // next page (used by `retry()` and the bottom error UI).
+    if (_state == PagingState.empty) return;
+    if (_state == PagingState.error && _items.isEmpty) return;
 
     final requestGeneration = _generation;
     _setState(PagingState.loadingMore);
+    _error = null;
     _safeNotifyListeners();
 
     try {
@@ -460,7 +483,6 @@ class PagingController<T> extends ChangeNotifier {
       if (requestGeneration != _generation) return;
       _error = e;
       _setState(PagingState.error);
-      debugPrint('Error loading next page: $e\n$stackTrace');
 
       // Keep current page unchanged since we only commit on success.
       analytics?.onPageError?.call(
@@ -541,7 +563,6 @@ class PagingController<T> extends ChangeNotifier {
       if (requestGeneration != _generation) return;
       _error = e;
       _setState(PagingState.error);
-      debugPrint('Error loading previous page: $e\n$stackTrace');
 
       analytics?.onPageError?.call(
         _currentPage - 1,

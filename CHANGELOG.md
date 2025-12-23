@@ -1,3 +1,17 @@
+## 1.2.2 - 2025-12-23
+
+### Fixed
+- **Long scroll “jump/overscroll”**: Added safer infinite-scroll trigger guards (clamped scroll percentage, `hasClients` checks, and `maxScrollExtent` edge case handling).
+- **Next-page retry**: `retry()` now correctly retries the next page when an error occurs after items already exist.
+
+### Improved
+- **Default caching**: `PagingConfig.cacheMode` default changed to `CacheMode.all` to avoid scroll-position jumps caused by head trimming.
+- **Optional scroll stabilization**: Added `PagingConfig.compensateForTrimmedItems` to best-effort compensate for head trimming (requires `PagingController.itemKeyGetter`).
+- **Logging**: Removed internal error `debugPrint` calls; apps should use controller state / analytics hooks to log.
+
+### Tests
+- Added long-scroll stability tests (List/Grid/Wrap) and expanded widget coverage for real-life flows (empty, error/retry, completed, pagination buttons, refresh).
+
 ## 1.2.1 - 2025-12-22
 
 ### Fixed

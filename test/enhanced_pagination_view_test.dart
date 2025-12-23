@@ -103,6 +103,40 @@ void main() {
     controller.dispose();
   });
 
+  test('retry should retry next page when items already exist', () async {
+    var page1Attempts = 0;
+
+    final controller = PagingController<String>(
+      config: const PagingConfig(pageSize: 2, autoLoadFirstPage: false),
+      pageFetcher: (page) async {
+        if (page == 0) return ['p0-1', 'p0-2'];
+        if (page == 1) {
+          page1Attempts++;
+          if (page1Attempts == 1) {
+            throw StateError('boom');
+          }
+          return ['p1-1', 'p1-2'];
+        }
+        return [];
+      },
+    );
+
+    await controller.loadFirstPage();
+    expect(controller.items, ['p0-1', 'p0-2']);
+
+    await controller.loadNextPage();
+    expect(controller.state, PagingState.error);
+    expect(controller.items, ['p0-1', 'p0-2']);
+    expect(page1Attempts, 1);
+
+    await controller.retry();
+    expect(page1Attempts, 2);
+    expect(controller.state, PagingState.loaded);
+    expect(controller.items, ['p0-1', 'p0-2', 'p1-1', 'p1-2']);
+
+    controller.dispose();
+  });
+
   test('PagingConfig should have correct defaults', () {
     const config = PagingConfig();
 
@@ -111,6 +145,9 @@ void main() {
     expect(config.initialPage, 0);
     expect(config.autoLoadFirstPage, true);
     expect(config.invisibleItemsThreshold, 3);
+    expect(config.cacheMode, CacheMode.all);
+    expect(config.maxCachedItems, 500);
+    expect(config.compensateForTrimmedItems, false);
   });
 
   test('monkey test: rapid create/use/dispose cycles', () async {

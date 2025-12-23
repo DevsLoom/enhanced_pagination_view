@@ -1,6 +1,6 @@
 name: enhanced_pagination_view
 description: "Powerful pagination package with O(1) item updates, dual mode support (infinite scroll + pagination buttons), and comprehensive state management."
-version: 1.2.1
+version: 1.2.2
 homepage: https://github.com/DevsLoom/enhanced_pagination_view
 repository: https://github.com/DevsLoom/enhanced_pagination_view
 issue_tracker: https://github.com/DevsLoom/enhanced_pagination_view/issues

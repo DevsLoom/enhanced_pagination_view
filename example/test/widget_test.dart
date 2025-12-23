@@ -6,7 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/main.dart';
+import 'package:example/main.dart';
 
 void main() {
   testWidgets('Home screen displays all example cards', (
@@ -45,7 +45,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify navigation happened
-    expect(find.text('Infinite Scroll Example'), findsOneWidget);
+    expect(find.text('Infinite Scroll'), findsOneWidget);
   });
 
   testWidgets('Navigation to Layouts example works', (

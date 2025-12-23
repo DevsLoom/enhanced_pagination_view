@@ -34,7 +34,7 @@ Add to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  enhanced_pagination_view: ^1.2.0
+  enhanced_pagination_view: ^1.2.2
 ```
 
 ## 🎯 Quick Start
@@ -260,16 +260,25 @@ PagingConfig(
   autoLoadFirstPage: true,           // Auto-load on init
   invisibleItemsThreshold: 3,        // Trigger next page when 3 items from end
   // Cache behavior (infiniteScroll only):
-  // Default is a bounded window to avoid unbounded memory growth.
-  // Set cacheMode: CacheMode.all if you intentionally want to keep everything.
-  cacheMode: CacheMode.limited,
+  // Default keeps all items to avoid scroll-position “jumps” when old items
+  // are trimmed out.
+  cacheMode: CacheMode.all,
   maxCachedItems: 500,
+  // If you use CacheMode.limited with variable-height items and you observe
+  // scroll jumps, opt in to best-effort compensation (requires itemKeyGetter).
+  compensateForTrimmedItems: false,
 )
 ```
 
 Notes:
 - If you use a large `pageSize`, set `maxCachedItems >= pageSize`.
 - For “very large total datasets” (e.g. 1M+ over time), prefer `CacheMode.limited` or `CacheMode.none`.
+
+If you use `CacheMode.limited` (or `none`), the controller may trim items from the
+start of the list. This can change scroll extents and feel like a jump,
+especially with variable-height rows. To reduce this, set:
+- `itemKeyGetter` on `PagingController`
+- `compensateForTrimmedItems: true` in `PagingConfig`
 
 ### Controller Methods
 

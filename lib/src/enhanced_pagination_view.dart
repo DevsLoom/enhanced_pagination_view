@@ -166,6 +166,16 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
   late ScrollController _scrollController;
   bool _isInternalScrollController = false;
 
+  // Windowed-mode scroll stabilization when PagingController trims items.
+  // We keep a leading spacer to preserve scroll extents and adjust it using
+  // an anchor item’s screen position (works for list/grid/wrap).
+  double _leadingTrimSpacerExtent = 0.0;
+  final Map<String, GlobalKey> _itemGlobalKeys = <String, GlobalKey>{};
+  List<String>? _previousItemKeys;
+  String? _pendingAnchorKey;
+  double? _pendingAnchorDy;
+  bool _trimAdjustmentScheduled = false;
+
   @override
   void initState() {
     super.initState();
@@ -205,13 +215,119 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
   // Called when controller state changes
   void _onControllerUpdate() {
     if (mounted) {
+      _prepareTrimCompensation();
       setState(() {});
+      _schedulePostFrameTrimAdjustment();
     }
+  }
+
+  GlobalKey _keyForItem(String itemKey) {
+    return _itemGlobalKeys.putIfAbsent(itemKey, () => GlobalKey());
+  }
+
+  double? _currentDyForKey(String itemKey) {
+    final key = _itemGlobalKeys[itemKey];
+    final context = key?.currentContext;
+    if (context == null) return null;
+    final renderObject = context.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
+    return renderObject.localToGlobal(Offset.zero).dy;
+  }
+
+  void _prepareTrimCompensation() {
+    final config = widget.controller.config;
+    if (!config.compensateForTrimmedItems) {
+      _previousItemKeys = null;
+      _pendingAnchorKey = null;
+      _pendingAnchorDy = null;
+      return;
+    }
+
+    final keyGetter = widget.controller.itemKeyGetter;
+    if (keyGetter == null) {
+      // We need stable keys to anchor.
+      return;
+    }
+
+    // Only handle vertical scrolling for now.
+    if (widget.scrollDirection != Axis.vertical) {
+      return;
+    }
+
+    // No trimming => no need to stabilize.
+    if (config.cacheMode == CacheMode.all) {
+      _previousItemKeys = widget.controller.items
+          .map((item) => keyGetter(item))
+          .toList(growable: false);
+      return;
+    }
+
+    final newKeys = widget.controller.items
+        .map((item) => keyGetter(item))
+        .toList(growable: false);
+    final previousKeys = _previousItemKeys;
+    _previousItemKeys = newKeys;
+
+    // Prune key map to avoid unbounded growth.
+    final newKeySet = newKeys.toSet();
+    _itemGlobalKeys.removeWhere((k, _) => !newKeySet.contains(k));
+
+    if (!_scrollController.hasClients) return;
+    if (previousKeys == null || previousKeys.isEmpty || newKeys.isEmpty) return;
+
+    // Detect head-trim: new list is a suffix of the previous list.
+    final anchorKey = newKeys.first;
+    final startIndexInPrevious = previousKeys.indexOf(anchorKey);
+    if (startIndexInPrevious <= 0) {
+      return;
+    }
+
+    // Capture the anchor's screen position before rebuild.
+    final anchorDy = _currentDyForKey(anchorKey);
+    if (anchorDy == null) return;
+
+    _pendingAnchorKey = anchorKey;
+    _pendingAnchorDy = anchorDy;
+  }
+
+  void _schedulePostFrameTrimAdjustment() {
+    if (_trimAdjustmentScheduled) return;
+    final anchorKey = _pendingAnchorKey;
+    final anchorDy = _pendingAnchorDy;
+    if (anchorKey == null || anchorDy == null) return;
+
+    _trimAdjustmentScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _trimAdjustmentScheduled = false;
+      if (!mounted) return;
+
+      final newDy = _currentDyForKey(anchorKey);
+      if (newDy == null) return;
+
+      // If anchor moved up (newDy < oldDy), add spacer to push it back down.
+      final delta = newDy - anchorDy;
+      final spacerDelta = -delta;
+      if (spacerDelta.abs() < 0.5) {
+        _pendingAnchorKey = null;
+        _pendingAnchorDy = null;
+        return;
+      }
+
+      setState(() {
+        _leadingTrimSpacerExtent = (_leadingTrimSpacerExtent + spacerDelta)
+            .clamp(0.0, double.infinity);
+      });
+
+      _pendingAnchorKey = null;
+      _pendingAnchorDy = null;
+    });
   }
 
   // Infinite scroll listener with prefetch support
   void _onScroll() {
     if (!widget.controller.config.infiniteScroll) return;
+
+    if (!_scrollController.hasClients) return;
 
     final config = widget.controller.config;
     final items = widget.controller.items;
@@ -224,9 +340,10 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
 
       // Estimate visible items based on scroll position
       // This is approximate - for exact calculation would need item heights
-      final scrollPercentage =
-          scrollController.position.pixels /
-          scrollController.position.maxScrollExtent;
+      final maxExtent = scrollController.position.maxScrollExtent;
+      final scrollPercentage = maxExtent <= 0
+          ? 0.0
+          : (scrollController.position.pixels / maxExtent).clamp(0.0, 1.0);
       final approximateVisibleIndex = (itemCount * scrollPercentage).floor();
 
       // Check if we're within last N items
@@ -290,6 +407,8 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
     }
 
     // Build the list using CustomScrollView for better performance
+    final config = widget.controller.config;
+
     Widget listView = CustomScrollView(
       key: widget.scrollViewKey,
       controller: _scrollController,
@@ -299,6 +418,22 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
       slivers: [
         // Add header if provided
         if (widget.header != null) SliverToBoxAdapter(child: widget.header!),
+
+        // Leading spacer for windowed-mode trimming stabilization.
+        if (config.compensateForTrimmedItems &&
+            config.cacheMode != CacheMode.all &&
+            _leadingTrimSpacerExtent > 0 &&
+            widget.scrollDirection == Axis.vertical)
+          (widget.padding != null)
+              ? SliverPadding(
+                  padding: widget.padding!,
+                  sliver: SliverToBoxAdapter(
+                    child: SizedBox(height: _leadingTrimSpacerExtent),
+                  ),
+                )
+              : SliverToBoxAdapter(
+                  child: SizedBox(height: _leadingTrimSpacerExtent),
+                ),
 
         // Add padding if provided
         if (widget.padding != null)
@@ -392,7 +527,14 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
 
   /// Build item with optional animation
   Widget _buildAnimatedItem(BuildContext context, T item, int index) {
-    final child = widget.itemBuilder(context, item, index);
+    Widget child = widget.itemBuilder(context, item, index);
+
+    final config = widget.controller.config;
+    final keyGetter = widget.controller.itemKeyGetter;
+    if (config.compensateForTrimmedItems && keyGetter != null) {
+      final itemKey = keyGetter(item);
+      child = KeyedSubtree(key: _keyForItem(itemKey), child: child);
+    }
 
     if (!widget.enableItemAnimations) {
       return child;
