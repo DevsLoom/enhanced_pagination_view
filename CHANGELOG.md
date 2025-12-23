@@ -6,6 +6,10 @@
 
 ## 1.2.2 - 2025-12-23
 
+### Documentation
+- Rewrote README in a more beginner-friendly tone and added clearer explanations/examples.
+- Added a clickable LICENSE link in README.
+
 ### Fixed
 - **Long scroll “jump/overscroll”**: Added safer infinite-scroll trigger guards (clamped scroll percentage, `hasClients` checks, and `maxScrollExtent` edge case handling).
 - **Next-page retry**: `retry()` now correctly retries the next page when an error occurs after items already exist.
