@@ -170,6 +170,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
   // We keep a leading spacer to preserve scroll extents and adjust it using
   // an anchor item’s screen position (works for list/grid/wrap).
   double _leadingTrimSpacerExtent = 0.0;
+  bool _canCompensateForTrimmedItems = false;
   final Map<String, GlobalKey> _itemGlobalKeys = <String, GlobalKey>{};
   List<String>? _previousItemKeys;
   String? _pendingAnchorKey;
@@ -237,6 +238,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
 
   void _prepareTrimCompensation() {
     final config = widget.controller.config;
+    _canCompensateForTrimmedItems = false;
     if (!config.compensateForTrimmedItems) {
       _previousItemKeys = null;
       _pendingAnchorKey = null;
@@ -250,19 +252,58 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
       return;
     }
 
+    // Validate that keys are non-empty and unique. If not, we must not use
+    // GlobalKey-based compensation because it will trigger Duplicate GlobalKey
+    // errors when duplicate keys exist in the visible widget tree.
+    final items = widget.controller.items;
+    final newKeys = items
+        .map((item) => keyGetter(item))
+        .toList(growable: false);
+
+    final seen = <String>{};
+    final duplicates = <String>{};
+    var hasEmpty = false;
+    for (final k in newKeys) {
+      if (k.isEmpty) {
+        hasEmpty = true;
+        continue;
+      }
+      if (!seen.add(k)) {
+        duplicates.add(k);
+      }
+    }
+
+    if (hasEmpty || duplicates.isNotEmpty) {
+      // Disable compensation gracefully.
+      _previousItemKeys = null;
+      _pendingAnchorKey = null;
+      _pendingAnchorMainAxis = null;
+      _leadingTrimSpacerExtent = 0.0;
+      _itemGlobalKeys.clear();
+
+      assert(() {
+        final dupPreview = duplicates.take(3).join(', ');
+        debugPrint(
+          'EnhancedPaginationView: disabling compensateForTrimmedItems because itemKeyGetter produced '
+          '${hasEmpty ? 'empty keys' : ''}'
+          '${hasEmpty && duplicates.isNotEmpty ? ' and ' : ''}'
+          '${duplicates.isNotEmpty ? 'duplicate keys (e.g. $dupPreview)' : ''}.',
+        );
+        return true;
+      }());
+      return;
+    }
+
+    _canCompensateForTrimmedItems = true;
+
     // Supports both vertical and horizontal scroll directions.
 
     // No trimming => no need to stabilize.
     if (config.cacheMode == CacheMode.all) {
-      _previousItemKeys = widget.controller.items
-          .map((item) => keyGetter(item))
-          .toList(growable: false);
+      _previousItemKeys = newKeys;
       return;
     }
 
-    final newKeys = widget.controller.items
-        .map((item) => keyGetter(item))
-        .toList(growable: false);
     final previousKeys = _previousItemKeys;
     _previousItemKeys = newKeys;
 
@@ -418,7 +459,7 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
         if (widget.header != null) SliverToBoxAdapter(child: widget.header!),
 
         // Leading spacer for windowed-mode trimming stabilization.
-        if (config.compensateForTrimmedItems &&
+        if (_canCompensateForTrimmedItems &&
             config.cacheMode != CacheMode.all &&
             _leadingTrimSpacerExtent > 0)
           (widget.padding != null)
@@ -530,9 +571,8 @@ class _EnhancedPaginationViewState<T> extends State<EnhancedPaginationView<T>> {
   Widget _buildAnimatedItem(BuildContext context, T item, int index) {
     Widget child = widget.itemBuilder(context, item, index);
 
-    final config = widget.controller.config;
     final keyGetter = widget.controller.itemKeyGetter;
-    if (config.compensateForTrimmedItems && keyGetter != null) {
+    if (_canCompensateForTrimmedItems && keyGetter != null) {
       final itemKey = keyGetter(item);
       child = KeyedSubtree(key: _keyForItem(itemKey), child: child);
     }
