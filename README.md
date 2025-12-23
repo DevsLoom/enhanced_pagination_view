@@ -280,6 +280,29 @@ especially with variable-height rows. To reduce this, set:
 - `itemKeyGetter` on `PagingController`
 - `compensateForTrimmedItems: true` in `PagingConfig`
 
+### Facebook-style Bounded Cache (Recommended for Huge Feeds)
+
+If you want a “Facebook-like” long-running feed (memory-bounded + smooth), use a
+limited cache window and enable trim compensation.
+
+```dart
+final controller = PagingController<Post>(
+  pageFetcher: (page) => api.fetchPosts(page),
+  itemKeyGetter: (post) => post.id, // Must be stable/unique
+  config: const PagingConfig(
+    cacheMode: CacheMode.limited,
+    maxCachedItems: 500, // Tune based on your UI + device constraints
+    compensateForTrimmedItems: true,
+  ),
+);
+```
+
+Tips:
+- `itemKeyGetter` is required here so the view can anchor a visible item and
+  best-effort preserve its screen position when older items are trimmed.
+- For variable-height items, `compensateForTrimmedItems` helps reduce perceived
+  “jumps”, but like all scroll stabilization techniques it’s best-effort.
+
 ### Controller Methods
 
 ```dart
