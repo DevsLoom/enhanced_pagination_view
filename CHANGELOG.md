@@ -1,9 +1,3 @@
-## 1.2.3 - 2025-12-23
-
-### Documentation
-- Rewrote README in a more beginner-friendly tone and added clearer explanations/examples.
-- Added a clickable LICENSE link in README.
-
 ## 1.2.2 - 2025-12-23
 
 ### Documentation
@@ -64,18 +58,12 @@ No migration needed! This is a backward-compatible breaking change:
 
 ## 1.1.0 - 2025-12-19
 
-### Added
-- `PagingController.snapshot()` / `restoreFromSnapshot(...)` to cache and restore paging state (items, page index, flags).
-- `PagingAnalytics<T>` hooks for page request/success/error and state-change tracking.
-- `EnhancedPaginationView.scrollViewKey` to support scroll position restoration via `PageStorageKey`.
-
 ### Improved
 - Concurrency safety: stale in-flight page results are ignored after `refresh()`/restore.
 
 ## 1.0.0 - 2025-12-19
 
 ### 🎉 Initial Release
-
 ### Changed
 - Default `PagingConfig.cacheMode` is `CacheMode.limited` (default `maxCachedItems` stays 500) to prevent unbounded memory growth in infinite scroll.
 
