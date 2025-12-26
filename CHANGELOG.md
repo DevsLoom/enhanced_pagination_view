@@ -1,3 +1,18 @@
+## 1.3.0 - 2025-12-25
+
+### Added
+- **Manual pagination control** via `PageResult<T>` ([#5](https://github.com/DevsLoom/enhanced_pagination_view/issues/5))
+  - New `PageResult<T>` class allows manual control over pagination end detection
+  - Useful when API provides `hasNextPage` flag or last page has exactly `pageSize` items
+  - Backward compatible: existing code using `List<T>` return type continues to work with automatic detection
+  - `pageFetcher` can now return either `List<T>` (automatic) or `PageResult<T>` (manual)
+
+### Examples
+- Added `manual_control_example.dart` demonstrating both manual and automatic pagination control
+
+### Tests
+- Added comprehensive tests for `PageResult` manual control including issue #5 scenario
+
 ## 1.2.3 - 2025-12-23
 
 ### Fixed

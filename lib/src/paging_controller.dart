@@ -1,5 +1,34 @@
 import 'package:flutter/foundation.dart';
 
+/// Result wrapper for pagination with manual control over hasMore flag
+///
+/// Use this when you need to manually control whether there are more pages,
+/// instead of relying on automatic detection based on item count.
+///
+/// Example:
+/// ```dart
+/// final controller = PagingController<User>(
+///   fetchPage: (page) async {
+///     final response = await api.getUsers(page);
+///     return PageResult(
+///       items: response.users,
+///       hasMore: response.hasNextPage, // Manual control
+///     );
+///   },
+/// );
+/// ```
+class PageResult<T> {
+  /// The list of items for this page
+  final List<T> items;
+
+  /// Whether there are more pages to load
+  ///
+  /// Set to `false` when you've reached the last page
+  final bool hasMore;
+
+  const PageResult({required this.items, required this.hasMore});
+}
+
 /// Cache management mode for infinite scroll
 enum CacheMode {
   /// Keep all previous items in memory (default)
@@ -211,8 +240,31 @@ class PagingController<T> extends ChangeNotifier {
   final PagingConfig config;
 
   /// Function to fetch a page of data
-  /// Takes current page number and returns list of items
-  final Future<List<T>> Function(int page) pageFetcher;
+  ///
+  /// Can return either:
+  /// - `List<T>` - Automatic pagination control (backward compatible)
+  ///   Determines hasMore based on whether items.length < pageSize
+  /// - `PageResult<T>` - Manual pagination control
+  ///   You specify whether there are more pages via hasMore flag
+  ///
+  /// Example (automatic):
+  /// ```dart
+  /// fetchPage: (page) async {
+  ///   return await api.getUsers(page); // Returns List<User>
+  /// }
+  /// ```
+  ///
+  /// Example (manual control):
+  /// ```dart
+  /// fetchPage: (page) async {
+  ///   final response = await api.getUsers(page);
+  ///   return PageResult(
+  ///     items: response.users,
+  ///     hasMore: response.hasNextPage,
+  ///   );
+  /// }
+  /// ```
+  final Future<Object> Function(int page) pageFetcher;
 
   /// Optional: Function to get unique key for each item
   ///
@@ -380,18 +432,33 @@ class PagingController<T> extends ChangeNotifier {
     try {
       _currentPage = config.initialPage;
       analytics?.onPageRequest?.call(_currentPage);
-      final newItems = await pageFetcher(_currentPage);
+      final result = await pageFetcher(_currentPage);
 
       // Ignore stale results.
       if (requestGeneration != _generation) return;
+
+      // Handle both List<T> (automatic) and PageResult<T> (manual) return types
+      final List<T> newItems;
+      final bool hasMore;
+
+      if (result is PageResult<T>) {
+        // Manual control: use the hasMore flag from PageResult
+        newItems = result.items;
+        hasMore = result.hasMore;
+      } else if (result is List<T>) {
+        // Automatic control: determine hasMore based on item count
+        newItems = result;
+        hasMore = newItems.length >= config.pageSize;
+      } else {
+        throw TypeError();
+      }
 
       // Ensure internal list remains growable even if the fetcher returns a
       // fixed-length list (e.g., List.generate(..., growable: false)).
       _items = List<T>.of(newItems, growable: true);
       _buildIndexMap();
 
-      // Check if we received less items than page size (means no more data)
-      _hasMoreData = newItems.length >= config.pageSize;
+      _hasMoreData = hasMore;
 
       _setState(_items.isEmpty ? PagingState.empty : PagingState.loaded);
       analytics?.onPageSuccess?.call(
@@ -433,10 +500,26 @@ class PagingController<T> extends ChangeNotifier {
     try {
       final nextPage = _currentPage + 1;
       analytics?.onPageRequest?.call(nextPage);
-      final newItems = await pageFetcher(nextPage);
+      final result = await pageFetcher(nextPage);
 
       // Ignore stale results.
       if (requestGeneration != _generation) return;
+
+      // Handle both List<T> (automatic) and PageResult<T> (manual) return types
+      final List<T> newItems;
+      final bool hasMore;
+
+      if (result is PageResult<T>) {
+        // Manual control: use the hasMore flag from PageResult
+        newItems = result.items;
+        hasMore = result.hasMore;
+      } else if (result is List<T>) {
+        // Automatic control: determine hasMore based on item count
+        newItems = result;
+        hasMore = newItems.length >= config.pageSize;
+      } else {
+        throw TypeError();
+      }
 
       _currentPage = nextPage;
 
@@ -466,9 +549,11 @@ class PagingController<T> extends ChangeNotifier {
         }
       }
 
-      // Check if we got less than page size
-      if (newItems.length < config.pageSize) {
-        _hasMoreData = false;
+      // Update hasMoreData based on result type
+      _hasMoreData = hasMore;
+
+      // Set state based on whether more data is available
+      if (!_hasMoreData) {
         _setState(PagingState.completed);
       } else {
         _setState(PagingState.loaded);
@@ -542,9 +627,21 @@ class PagingController<T> extends ChangeNotifier {
     try {
       final previousPage = _currentPage - 1;
       analytics?.onPageRequest?.call(previousPage);
-      final newItems = await pageFetcher(previousPage);
+      final result = await pageFetcher(previousPage);
 
       if (requestGeneration != _generation) return;
+
+      // Handle both List<T> (automatic) and PageResult<T> (manual) return types
+      final List<T> newItems;
+
+      if (result is PageResult<T>) {
+        newItems = result.items;
+        // For previous page, we know there's more data (the current page)
+      } else if (result is List<T>) {
+        newItems = result;
+      } else {
+        throw TypeError();
+      }
 
       _currentPage = previousPage;
       _items = List<T>.of(newItems, growable: true);

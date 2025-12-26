@@ -4,6 +4,7 @@ library;
 ///
 /// This package provides a flexible pagination solution with:
 /// - Dual mode: Infinite scroll OR traditional pagination buttons
+/// - Manual pagination control via PageResult for advanced use cases
 /// - Direct item updates without full refresh (O(1) lookup)
 /// - Comprehensive state management
 /// - Pull-to-refresh support
@@ -44,6 +45,14 @@ library;
 /// );
 /// ```
 
-export 'src/paging_controller.dart';
+export 'src/paging_controller.dart'
+    show
+        PagingController,
+        PagingConfig,
+        PagingState,
+        CacheMode,
+        PagingAnalytics,
+        PagingSnapshot,
+        PageResult;
 export 'src/enhanced_pagination_view.dart'
     show EnhancedPaginationView, PaginationLayoutMode;

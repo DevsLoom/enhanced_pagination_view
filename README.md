@@ -17,6 +17,39 @@ dependencies:
   enhanced_pagination_view: ^1.2.3
 ```
 
+## Manual pagination control
+
+Sometimes your API provides explicit pagination metadata (like `hasNextPage` flag), or the last page has exactly `pageSize` items. In these cases, automatic detection won't work correctly. Use `PageResult` for manual control:
+
+```dart
+final controller = PagingController<User>(
+  config: const PagingConfig(
+    pageSize: 10,
+    initialPage: 1, // API pages start from 1
+  ),
+  pageFetcher: (page) async {
+    final response = await api.getUsers(page);
+    
+    // Manual control: tell the controller if there are more pages
+    return PageResult<User>(
+      items: response.users,
+      hasMore: response.hasNextPage, // From API metadata
+    );
+  },
+);
+```
+
+**Backward compatible**: If you just return `List<T>`, it works as before (automatic detection based on `items.length < pageSize`):
+
+```dart
+final controller = PagingController<User>(
+  pageFetcher: (page) async {
+    final users = await api.getUsers(page);
+    return users; // Automatic detection
+  },
+);
+```
+
 ## Quick start (infinite scroll)
 
 This is the most common setup.
